@@ -5,6 +5,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import Login from "./pages/Login.tsx";
+import Signup from "./pages/Signup.tsx";
+import ClientDashboard from "./pages/dashboard/ClientDashboard.tsx";
+import AdminDashboard from "./pages/dashboard/AdminDashboard.tsx";
+import EmployeeDashboard from "./pages/dashboard/EmployeeDashboard.tsx";
+import { AuthProvider } from "./hooks/useAuth.tsx";
+import { RequireAuth } from "./components/lish/RequireAuth.tsx";
 
 const queryClient = new QueryClient();
 
@@ -14,11 +21,17 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/dashboard/client" element={<RequireAuth role="client"><ClientDashboard /></RequireAuth>} />
+            <Route path="/dashboard/admin" element={<RequireAuth role="admin"><AdminDashboard /></RequireAuth>} />
+            <Route path="/dashboard/employee" element={<RequireAuth role="employee"><EmployeeDashboard /></RequireAuth>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
