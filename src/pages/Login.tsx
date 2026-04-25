@@ -57,7 +57,7 @@ export default function Login() {
         <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-[hsl(var(--accent))] opacity-50 blur-3xl animate-blob" />
         <div className="absolute bottom-10 right-0 w-96 h-96 rounded-full bg-[hsl(var(--secondary))] opacity-60 blur-3xl animate-blob" style={{ animationDelay: "3s" }} />
 
-        <LishLogo className="h-10 w-auto relative z-10" />
+        <LishLogo className="h-14 w-auto relative z-10" />
 
         <div className="relative z-10">
           <h2 className="font-serif text-5xl font-semibold text-gradient leading-tight">
@@ -97,7 +97,7 @@ export default function Login() {
         >
           {/* Mobile logo */}
           <div className="lg:hidden mb-8">
-            <LishLogo className="h-9 w-auto" />
+            <LishLogo className="h-12 w-auto" />
           </div>
 
           <h1 className="font-serif text-3xl text-gradient">Sign in</h1>

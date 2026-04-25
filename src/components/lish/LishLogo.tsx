@@ -1,12 +1,8 @@
 export const LishLogo = ({ className = "" }: { className?: string }) => (
   <img
-    src="/logo.jpg"
+    src="/logo.png"
     alt="LISH"
     className={className}
-    style={{
-      objectFit: "contain",
-      display: "block",
-      mixBlendMode: "multiply",  // removes white background on light backgrounds
-    }}
+    style={{ objectFit: "contain", display: "block" }}
   />
 );

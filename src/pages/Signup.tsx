@@ -81,7 +81,7 @@ export default function Signup() {
       >
         <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-[hsl(var(--accent))] opacity-50 blur-3xl animate-blob" />
         <div className="absolute bottom-10 right-0 w-96 h-96 rounded-full bg-[hsl(var(--secondary))] opacity-60 blur-3xl animate-blob" style={{ animationDelay: "3s" }} />
-        <LishLogo className="h-10 w-auto relative z-10" />
+        <LishLogo className="h-14 w-auto relative z-10" />
         <div className="relative z-10">
           <h2 className="font-serif text-5xl font-semibold text-gradient leading-tight">Join<br />LISH</h2>
           <p className="mt-4 text-muted-foreground text-base leading-relaxed max-w-xs">
@@ -101,7 +101,7 @@ export default function Signup() {
 
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white/60 backdrop-blur-sm overflow-y-auto">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="w-full max-w-md">
-          <div className="lg:hidden mb-8"><LishLogo className="h-9 w-auto" /></div>
+          <div className="lg:hidden mb-8"><LishLogo className="h-12 w-auto" /></div>
           <h1 className="font-serif text-3xl text-gradient">Create account</h1>
           <p className="text-muted-foreground text-sm mt-1 mb-6">Choose your role to get started</p>
 

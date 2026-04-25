@@ -78,7 +78,7 @@ export const ClientDashboard = () => {
         `}>
           {/* Logo */}
           <div className="px-5 py-5 border-b border-border flex items-center justify-between">
-            <LishLogo className="h-7 w-auto" />
+            <LishLogo className="h-10 w-auto" />
             <button className="lg:hidden text-muted-foreground" onClick={() => setMobileOpen(false)}>
               <X className="w-5 h-5" />
             </button>
@@ -134,7 +134,7 @@ export const ClientDashboard = () => {
           <button onClick={() => setMobileOpen(true)} className="text-muted-foreground">
             <Menu className="w-5 h-5" />
           </button>
-          <LishLogo className="h-6 w-auto" />
+          <LishLogo className="h-9 w-auto" />
           <div className="ml-auto flex items-center gap-2">
             <NotificationBell unreadCount={unreadCount} notifications={notifications} onMarkAllRead={markAllRead} onMarkRead={markRead} variant="client" />
             <span className="text-sm font-medium text-muted-foreground capitalize">{section.replace("-", " ")}</span>

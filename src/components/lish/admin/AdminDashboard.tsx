@@ -53,7 +53,7 @@ export const AdminDashboard = () => {
       {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-60 flex flex-col bg-white border-r border-stone-200 transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         <div className="px-5 py-4 border-b border-stone-200 flex items-center justify-between">
-          <LishLogo className="h-7 w-auto" />
+          <LishLogo className="h-10 w-auto" />
           <button className="lg:hidden text-stone-400" onClick={() => setMobileOpen(false)}><X className="w-4 h-4" /></button>
         </div>
 
