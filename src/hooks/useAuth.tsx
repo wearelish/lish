@@ -15,38 +15,39 @@ interface AuthCtx {
 
 const Ctx = createContext<AuthCtx | undefined>(undefined);
 
+const ROLE_CACHE_KEY = "lish_role";
+
+const getCachedRole = (): AppRole | null => {
+  try { return localStorage.getItem(ROLE_CACHE_KEY) as AppRole | null; } catch { return null; }
+};
+const setCachedRole = (r: AppRole | null) => {
+  try { r ? localStorage.setItem(ROLE_CACHE_KEY, r) : localStorage.removeItem(ROLE_CACHE_KEY); } catch {}
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<AppRole | null>(null);
-  // Start as false — show landing immediately, update when auth resolves
-  const [loading, setLoading] = useState(false);
-  const [initializing, setInitializing] = useState(true);
+  // Start with cached role so dashboard shows instantly on refresh
+  const [role, setRole] = useState<AppRole | null>(getCachedRole());
+  const [loading, setLoading] = useState(true);
 
   const loadRole = async (uid: string): Promise<void> => {
     try {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", uid)
-        .limit(1);
-      if (error || !data || data.length === 0) { setRole("client"); return; }
+      const { data } = await supabase
+        .from("user_roles").select("role").eq("user_id", uid).limit(1);
+      if (!data || data.length === 0) { setRole("client"); setCachedRole("client"); return; }
       const roles = data.map((r) => r.role as AppRole);
-      if (roles.includes("admin")) setRole("admin");
-      else if (roles.includes("employee")) setRole("employee");
-      else setRole("client");
+      const resolved = roles.includes("admin") ? "admin" : roles.includes("employee") ? "employee" : "client";
+      setRole(resolved);
+      setCachedRole(resolved);
     } catch {
-      setRole("client");
+      // Keep cached role on network error
     }
   };
 
   useEffect(() => {
     let mounted = true;
-
-    // Hard timeout — never block UI more than 3s
-    const timeout = setTimeout(() => {
-      if (mounted) setInitializing(false);
-    }, 3000);
+    const timeout = setTimeout(() => { if (mounted) setLoading(false); }, 2000);
 
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       if (!mounted) return;
@@ -54,14 +55,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        setLoading(true);
         await loadRole(s.user.id);
-        setLoading(false);
+      } else {
+        setRole(null);
+        setCachedRole(null);
       }
-      setInitializing(false);
-    }).catch(() => {
-      if (mounted) setInitializing(false);
-    });
+      setLoading(false);
+    }).catch(() => { if (mounted) setLoading(false); });
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
       if (!mounted) return;
@@ -71,28 +71,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await loadRole(s.user.id);
       } else {
         setRole(null);
+        setCachedRole(null);
       }
     });
 
-    return () => {
-      mounted = false;
-      clearTimeout(timeout);
-      sub.subscription.unsubscribe();
-    };
+    return () => { mounted = false; clearTimeout(timeout); sub.subscription.unsubscribe(); };
   }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
     setRole(null); setUser(null); setSession(null);
+    setCachedRole(null);
   };
 
   const refreshRole = async () => { if (user) await loadRole(user.id); };
 
-  // Only block render while initializing AND user is logged in (role loading)
-  const isLoading = initializing || loading;
-
   return (
-    <Ctx.Provider value={{ session, user, role, loading: isLoading, signOut, refreshRole }}>
+    <Ctx.Provider value={{ session, user, role, loading, signOut, refreshRole }}>
       {children}
     </Ctx.Provider>
   );

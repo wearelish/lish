@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { Navbar } from "@/components/lish/Navbar";
 import { LandingView } from "@/components/lish/LandingView";
@@ -20,36 +20,35 @@ const Landing = () => (
 export default function Index() {
   const { user, role, loading } = useAuth();
 
-  // Not logged in — show landing immediately, no spinner
-  if (!user) return <Landing />;
+  // No user — show landing instantly
+  if (!user && !loading) return <Landing />;
 
-  // Logged in but role still loading — show small inline spinner, not full screen
-  if (loading || role === null) {
+  // User exists and role is known — show dashboard instantly (from cache or fresh)
+  if (user && role) {
+    if (role === "admin") return (
+      <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+        <AdminDashboard />
+      </motion.div>
+    );
+    if (role === "employee") return (
+      <motion.div key="employee" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+        <EmployeeDashboard />
+      </motion.div>
+    );
     return (
-      <div className="min-h-screen hero-bg flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin mx-auto" />
-          <p className="text-xs text-muted-foreground">Loading your workspace…</p>
-        </div>
-      </div>
+      <motion.div key="client" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+        <ClientDashboard />
+      </motion.div>
     );
   }
 
-  if (role === "admin") return (
-    <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <AdminDashboard />
-    </motion.div>
+  // Brief loading state — only when no cache available
+  if (loading) return (
+    <div className="min-h-screen hero-bg flex items-center justify-center">
+      <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+    </div>
   );
 
-  if (role === "employee") return (
-    <motion.div key="employee" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <EmployeeDashboard />
-    </motion.div>
-  );
-
-  return (
-    <motion.div key="client" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <ClientDashboard />
-    </motion.div>
-  );
+  // Fallback — not logged in
+  return <Landing />;
 }
