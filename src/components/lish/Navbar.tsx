@@ -22,8 +22,9 @@ export const Navbar = () => {
       className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-8 pt-4"
     >
       <nav
-        className="max-w-5xl mx-auto rounded-[2rem] px-5 py-2.5 flex items-center justify-between"
+        className="max-w-5xl mx-auto px-5 py-2.5 flex items-center justify-between"
         style={{
+          borderRadius: "2rem",
           background: "rgba(255, 255, 255, 0.18)",
           backdropFilter: "blur(32px) saturate(180%)",
           WebkitBackdropFilter: "blur(32px) saturate(180%)",
