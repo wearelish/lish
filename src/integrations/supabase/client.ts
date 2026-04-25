@@ -6,11 +6,8 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: typeof window !== "undefined" ? localStorage : undefined,
     persistSession: true,
     autoRefreshToken: true,
-  },
-  global: {
-    fetch: (url, options) => fetch(url, { ...options, signal: AbortSignal.timeout(8000) }),
+    detectSessionInUrl: true,
   },
 });
