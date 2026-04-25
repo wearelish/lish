@@ -19,15 +19,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
-  // loading = true until BOTH session AND role are resolved
-  const [loading, setLoading] = useState(true);
+  // Start as false — show landing immediately, update when auth resolves
+  const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
   const loadRole = async (uid: string): Promise<void> => {
     try {
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", uid);
+        .eq("user_id", uid)
+        .limit(1);
       if (error || !data || data.length === 0) { setRole("client"); return; }
       const roles = data.map((r) => r.role as AppRole);
       if (roles.includes("admin")) setRole("admin");
@@ -41,18 +43,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    // Safety timeout — if loading takes more than 5s, force it to false
+    // Hard timeout — never block UI more than 3s
     const timeout = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 5000);
+      if (mounted) setInitializing(false);
+    }, 3000);
 
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       if (!mounted) return;
       clearTimeout(timeout);
       setSession(s);
       setUser(s?.user ?? null);
-      if (s?.user) await loadRole(s.user.id);
-      setLoading(false);
+      if (s?.user) {
+        setLoading(true);
+        await loadRole(s.user.id);
+        setLoading(false);
+      }
+      setInitializing(false);
+    }).catch(() => {
+      if (mounted) setInitializing(false);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
@@ -80,8 +88,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshRole = async () => { if (user) await loadRole(user.id); };
 
+  // Only block render while initializing AND user is logged in (role loading)
+  const isLoading = initializing || loading;
+
   return (
-    <Ctx.Provider value={{ session, user, role, loading, signOut, refreshRole }}>
+    <Ctx.Provider value={{ session, user, role, loading: isLoading, signOut, refreshRole }}>
       {children}
     </Ctx.Provider>
   );
