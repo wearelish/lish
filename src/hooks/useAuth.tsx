@@ -82,6 +82,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
     setRole(null); setUser(null); setSession(null);
     setCachedRole(null);
+    // Force page reload to clear all state cleanly
+    window.location.href = "/";
   };
 
   const refreshRole = async () => { if (user) await loadRole(user.id); };

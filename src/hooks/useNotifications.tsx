@@ -27,30 +27,30 @@ export const useNotifications = () => {
 
   const fetchNotifications = useCallback(async () => {
     if (!uid) return;
-    const { data, error } = await db
-      .from("notifications")
-      .select("*")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    if (error || !data) return;
+    try {
+      const { data, error } = await db
+        .from("notifications")
+        .select("*")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error || !data) return;
 
     setNotifications(data);
     const unread = data.filter((n: Notification) => !n.is_read);
     setUnreadCount(unread.length);
 
-    // Show popup for newest unread not yet shown
     if (unread.length > 0) {
       const newest = unread[0] as Notification;
       if (newest.id !== lastIdRef.current) {
         lastIdRef.current = newest.id;
         const popupItem: PopupNotification = { ...newest, popupId: newest.id };
         setPopup(popupItem);
-        // Auto-dismiss after 1s (0.2s in + 0.6s stay + 0.2s out = 1s total)
         if (popupTimerRef.current) clearTimeout(popupTimerRef.current);
         popupTimerRef.current = setTimeout(() => setPopup(null), 1000);
       }
     }
+  } catch { /* silent fail */ }
   }, [uid]);
 
   const markAllRead = useCallback(async () => {
