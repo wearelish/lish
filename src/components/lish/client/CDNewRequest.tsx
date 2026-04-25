@@ -25,31 +25,31 @@ export const CDNewRequest = ({ onNavigate }: { onNavigate: (s: CDSection) => voi
     if (!uid) return;
     setSaving(true);
 
-    const { error } = await supabase.from("service_requests").insert({
+    // Optimistic — show success immediately, insert in background
+    const insertData = {
       client_id: uid,
       title: form.title,
       description: form.description,
       budget: form.budget ? Number(form.budget) : null,
       deadline: form.deadline || null,
+    };
+
+    // Show done state right away
+    setSaving(false);
+    setDone(true);
+
+    // Fire insert without waiting
+    supabase.from("service_requests").insert(insertData).then(({ error }) => {
+      if (error) toast.error("Request may not have saved: " + error.message);
     });
 
-    if (error) {
-      setSaving(false);
-      toast.error(error.message);
-      return;
-    }
-
     if (form.meetingRequest) {
-      const { error: meetErr } = await db.from("meetings").insert({
+      db.from("meetings").insert({
         client_id: uid,
         title: `Meeting for: ${form.title}`,
         description: "Requested alongside service submission.",
       });
-      if (meetErr) toast.error("Request saved but meeting request failed: " + meetErr.message);
     }
-
-    setSaving(false);
-    setDone(true);
   };
 
   if (done) {
