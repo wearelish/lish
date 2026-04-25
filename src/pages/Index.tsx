@@ -17,38 +17,38 @@ const Landing = () => (
   </div>
 );
 
+const Spinner = () => (
+  <div className="min-h-screen hero-bg flex items-center justify-center">
+    <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+  </div>
+);
+
 export default function Index() {
   const { user, role, loading } = useAuth();
 
-  // No user — show landing instantly
-  if (!user && !loading) return <Landing />;
+  // Still initializing — show spinner briefly
+  if (loading) return <Spinner />;
 
-  // User exists and role is known — show dashboard instantly (from cache or fresh)
-  if (user && role) {
-    if (role === "admin") return (
-      <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
-        <AdminDashboard />
-      </motion.div>
-    );
-    if (role === "employee") return (
-      <motion.div key="employee" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
-        <EmployeeDashboard />
-      </motion.div>
-    );
-    return (
-      <motion.div key="client" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
-        <ClientDashboard />
-      </motion.div>
-    );
-  }
+  // Not logged in — landing page with Login + Join buttons
+  if (!user) return <Landing />;
 
-  // Brief loading state — only when no cache available
-  if (loading) return (
-    <div className="min-h-screen hero-bg flex items-center justify-center">
-      <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-    </div>
+  // Logged in — go straight to correct dashboard, never show landing
+  if (role === "admin") return (
+    <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+      <AdminDashboard />
+    </motion.div>
   );
 
-  // Fallback — not logged in
-  return <Landing />;
+  if (role === "employee") return (
+    <motion.div key="employee" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+      <EmployeeDashboard />
+    </motion.div>
+  );
+
+  // Client (default)
+  return (
+    <motion.div key="client" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+      <ClientDashboard />
+    </motion.div>
+  );
 }
