@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   CreditCard, AlertCircle, CheckCircle2, Clock,
-  X, Banknote, Smartphone, Timer
+  X, Banknote, Smartphone, Timer, ExternalLink
 } from "lucide-react";
 import { statusBadge, PageHeader, EmptyState } from "./shared";
 
 const db = supabase as any;
 
-// Demo payment modal
+// Payment modal — Stripe link (Google Pay / Apple Pay / UPI / Card) + manual fallback
 const PayModal = ({
   request,
   type,
@@ -25,160 +25,74 @@ const PayModal = ({
   onClose: () => void;
   onSuccess: () => void;
 }) => {
-  const [method, setMethod] = useState<"upi" | "card" | null>(null);
-  const [paying, setPaying] = useState(false);
-  const [step, setStep] = useState<"choose" | "confirm" | "processing" | "done">("choose");
+  const [confirming, setConfirming] = useState(false);
   const price = Number(request.final_price) || 0;
   const amount = type === "upfront" ? price * 0.4 : price * 0.6;
+  const stripeLink = (request as any).stripe_payment_link;
 
-  const pay = async () => {
-    setStep("processing");
-    // Simulate payment processing delay
-    await new Promise(r => setTimeout(r, 1800));
-    setPaying(true);
+  const confirmManual = async () => {
+    setConfirming(true);
     const field = type === "upfront" ? "upfront_paid" : "final_paid";
     const updates: any = { [field]: true };
-    // When upfront paid, set deadline start = now (deadline_started_at)
-    if (type === "upfront") {
-      updates.status = "in_progress";
-    }
-    const { error } = await supabase
-      .from("service_requests")
-      .update(updates)
-      .eq("id", request.id);
-    setPaying(false);
-    if (error) {
-      toast.error(error.message);
-      setStep("confirm");
-      return;
-    }
-    setStep("done");
-    setTimeout(() => {
-      onSuccess();
-      onClose();
-    }, 1500);
+    if (type === "upfront") updates.status = "in_progress";
+    const { error } = await supabase.from("service_requests").update(updates).eq("id", request.id);
+    setConfirming(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(type === "upfront" ? "Payment confirmed! Work starts now." : "Final payment confirmed!");
+    onSuccess();
+    onClose();
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden"
-      >
-        {/* Header */}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0 }}
+        className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
+
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
           <div>
-            <p className="font-semibold text-stone-800">
-              {type === "upfront" ? "Pay 40% Advance" : "Pay 60% Final"}
-            </p>
+            <p className="font-semibold text-stone-800">{type === "upfront" ? "Pay 40% Advance" : "Pay 60% Final"}</p>
             <p className="text-xs text-stone-400 mt-0.5 truncate max-w-[200px]">{request.title}</p>
           </div>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-700">
-            <X className="w-5 h-5" />
-          </button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-700"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="px-6 py-5">
-          {/* Amount */}
-          <div className="text-center mb-6">
+        <div className="px-6 py-5 space-y-4">
+          <div className="text-center">
             <p className="text-4xl font-bold text-stone-800">${amount.toLocaleString()}</p>
-            <p className="text-xs text-stone-400 mt-1">
-              {type === "upfront" ? "40% advance — work starts after payment" : "60% final — on delivery"}
-            </p>
+            <p className="text-xs text-stone-400 mt-1">{type === "upfront" ? "40% advance — work starts after payment" : "60% final — on delivery"}</p>
           </div>
 
-          <AnimatePresence mode="wait">
-            {step === "choose" && (
-              <motion.div key="choose" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-                <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-3">Choose payment method</p>
-                {[
-                  { id: "upi" as const, icon: Smartphone, label: "UPI / Bank Transfer", desc: "Pay via UPI, NEFT, or bank transfer" },
-                  { id: "card" as const, icon: CreditCard, label: "Card / Stripe", desc: "Pay with debit or credit card" },
-                ].map(m => (
-                  <button key={m.id} onClick={() => { setMethod(m.id); setStep("confirm"); }}
-                    className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-stone-100 hover:border-primary/40 hover:bg-primary/5 transition-all text-left">
-                    <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center shrink-0">
-                      <m.icon className="w-5 h-5 text-stone-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm text-stone-800">{m.label}</p>
-                      <p className="text-xs text-stone-400">{m.desc}</p>
-                    </div>
-                  </button>
-                ))}
-              </motion.div>
-            )}
-
-            {step === "confirm" && method && (
-              <motion.div key="confirm" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="space-y-4">
-                {method === "upi" ? (
-                  <div className="bg-stone-50 rounded-2xl p-4 space-y-3">
-                    <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider">UPI Payment Details</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-stone-600">UPI ID</span>
-                      <span className="font-mono text-sm font-semibold text-stone-800">lish@upi</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-stone-600">Amount</span>
-                      <span className="font-semibold text-stone-800">${amount.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-stone-600">Reference</span>
-                      <span className="font-mono text-xs text-stone-500">{request.id.slice(0, 8).toUpperCase()}</span>
-                    </div>
-                    <p className="text-[11px] text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
-                      After paying via UPI, click "Confirm Payment" below. Admin will verify and activate your project.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="bg-stone-50 rounded-2xl p-4 space-y-3">
-                    <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Card / Stripe (Demo)</p>
-                    <div className="space-y-2">
-                      <div className="bg-white rounded-xl border border-stone-200 px-3 py-2.5 text-sm text-stone-400">4242 4242 4242 4242</div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-white rounded-xl border border-stone-200 px-3 py-2.5 text-sm text-stone-400">12/28</div>
-                        <div className="bg-white rounded-xl border border-stone-200 px-3 py-2.5 text-sm text-stone-400">123</div>
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-stone-400">Demo mode — no real charge. Use test card above.</p>
-                  </div>
-                )}
-
-                <div className="flex gap-2">
-                  <Button onClick={() => setStep("choose")} variant="outline" className="flex-1 rounded-xl h-11">Back</Button>
-                  <Button onClick={pay} className="flex-1 rounded-xl h-11 bg-foreground text-background border-0">
-                    Confirm Payment
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-
-            {step === "processing" && (
-              <motion.div key="processing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-8 text-center space-y-4">
-                <div className="w-14 h-14 rounded-full border-4 border-primary/20 border-t-primary animate-spin mx-auto" />
-                <p className="text-sm font-medium text-stone-700">Processing payment…</p>
-                <p className="text-xs text-stone-400">Please wait, do not close this window.</p>
-              </motion.div>
-            )}
-
-            {step === "done" && (
-              <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-8 text-center space-y-3">
-                <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto" />
-                <p className="text-lg font-bold text-stone-800">Payment Confirmed!</p>
-                <p className="text-sm text-stone-500">
-                  {type === "upfront" ? "Work has started. Deadline countdown begins now." : "Project marked as fully paid."}
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {stripeLink ? (
+            <>
+              {/* Primary: Stripe link — Google Pay, Apple Pay, UPI, Card */}
+              <a href={stripeLink} target="_blank" rel="noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-white font-semibold text-sm transition-all hover:opacity-90"
+                style={{ background: "linear-gradient(135deg, #635BFF 0%, #7B73FF 100%)", boxShadow: "0 4px 16px rgba(99,91,255,0.35)" }}>
+                <ExternalLink className="w-4 h-4" />
+                Pay with Google Pay / Apple Pay / UPI / Card
+              </a>
+              <p className="text-[11px] text-center text-stone-400">Opens secure Stripe checkout — supports all payment methods</p>
+              <div className="border-t border-stone-100 pt-3">
+                <p className="text-xs text-stone-500 mb-2 text-center">Already paid via the link?</p>
+                <Button onClick={confirmManual} disabled={confirming} variant="outline" className="w-full rounded-xl h-10 text-sm">
+                  {confirming ? "Confirming…" : "Mark as Paid"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* No Stripe link yet — manual confirmation */}
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
+                <p className="text-sm text-amber-700 font-medium">Payment link not set up yet</p>
+                <p className="text-xs text-amber-600 mt-1">Admin will add the payment link shortly. You can confirm manually once you've paid via bank transfer or UPI.</p>
+              </div>
+              <Button onClick={confirmManual} disabled={confirming} className="w-full rounded-xl h-11 bg-foreground text-background border-0">
+                {confirming ? "Confirming…" : "Confirm Manual Payment"}
+              </Button>
+            </>
+          )}
         </div>
       </motion.div>
     </motion.div>

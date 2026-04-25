@@ -7,19 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { X, Send } from "lucide-react";
+import { X, Send, CheckCircle, XCircle } from "lucide-react";
 import { SectionHeader, statusBadge, Table, TR, TD } from "./shared";
 
-const db = supabase as any;
-const STATUSES = ["pending", "negotiating", "accepted", "rejected", "in_progress", "completed", "cancelled"];
+const STATUSES = ["pending", "accepted", "rejected", "in_progress", "completed", "cancelled"];
 
 export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) => {
   const qc = useQueryClient();
   const [active, setActive] = useState<any>(null);
   const [filter, setFilter] = useState("all");
   const [finalPrice, setFinalPrice] = useState("");
-  const [counter, setCounter] = useState("");
-  const [counterMsg, setCounterMsg] = useState("");
+  const [stripeLink, setStripeLink] = useState("");
   const [assignTo, setAssignTo] = useState("");
   const [chatMsg, setChatMsg] = useState("");
   const [saving, setSaving] = useState(false);
@@ -44,15 +42,6 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
     },
   });
 
-  const { data: negs = [] } = useQuery({
-    queryKey: ["ad-negs", active?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from("negotiations").select("*").eq("request_id", active!.id).order("created_at");
-      return data ?? [];
-    },
-    enabled: !!active?.id,
-  });
-
   const { data: msgs = [] } = useQuery({
     queryKey: ["ad-msgs", active?.id],
     queryFn: async () => {
@@ -65,7 +54,6 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
 
   const reload = () => {
     qc.invalidateQueries({ queryKey: ["ad-requests-full"] });
-    qc.invalidateQueries({ queryKey: ["ad-negs", active?.id] });
     qc.invalidateQueries({ queryKey: ["ad-msgs", active?.id] });
   };
 
@@ -82,11 +70,13 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
 
   const savePrice = async () => {
     if (!active || !finalPrice) return;
-    const { error } = await supabase.from("service_requests").update({ final_price: Number(finalPrice) } as any).eq("id", active.id);
+    const updates: any = { final_price: Number(finalPrice) };
+    if (stripeLink) updates.stripe_payment_link = stripeLink;
+    const { error } = await supabase.from("service_requests").update(updates).eq("id", active.id);
     if (error) { toast.error(error.message); return; }
-    setActive({ ...active, final_price: Number(finalPrice) });
+    setActive({ ...active, final_price: Number(finalPrice), stripe_payment_link: stripeLink });
     reload();
-    toast.success("Final price set");
+    toast.success("Price saved — client can now pay");
   };
 
   const assign = async () => {
@@ -96,19 +86,6 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
     setActive({ ...active, assigned_employee_id: assignTo });
     reload();
     toast.success("Employee assigned");
-  };
-
-  const sendNeg = async () => {
-    if (!active || !counter) return;
-    if (negs.length >= 6) { toast.error("Max 3 negotiation rounds reached"); return; }
-    const { error } = await supabase.from("negotiations").insert({
-      request_id: active.id, actor: "admin", proposed_price: Number(counter), message: counterMsg || null,
-    });
-    if (error) { toast.error(error.message); return; }
-    if (active.status === "pending") await setStatus("negotiating");
-    setCounter(""); setCounterMsg("");
-    reload();
-    toast.success("Counter offer sent");
   };
 
   const sendMsg = async (e: React.FormEvent) => {
@@ -122,13 +99,19 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
     reload();
   };
 
+  const quickAction = async (id: string, status: "accepted" | "rejected") => {
+    const { error } = await supabase.from("service_requests").update({ status } as any).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    reload();
+    toast.success(status === "accepted" ? "Request accepted" : "Request rejected");
+  };
+
   const filtered = filter === "all" ? requests : requests.filter((r: any) => r.status === filter);
 
   return (
     <div>
       <SectionHeader title="Request Management" subtitle={`${requests.length} total requests`} />
 
-      {/* Filter */}
       <div className="flex gap-2 flex-wrap mb-4">
         {["all", ...STATUSES].map(f => (
           <button key={f} onClick={() => setFilter(f)}
@@ -146,17 +129,21 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
             <TD>{statusBadge(r.status)}</TD>
             <TD className="text-xs text-stone-400">{new Date(r.created_at).toLocaleDateString()}</TD>
             <TD>
-              <div className="flex gap-1.5">
-                <button onClick={() => { setActive(r); setFinalPrice(r.final_price?.toString() ?? ""); setAssignTo(r.assigned_employee_id ?? ""); }}
+              <div className="flex gap-1.5 flex-wrap">
+                <button onClick={() => { setActive(r); setFinalPrice(r.final_price?.toString() ?? ""); setAssignTo(r.assigned_employee_id ?? ""); setStripeLink((r as any).stripe_payment_link ?? ""); }}
                   className="px-2.5 py-1 rounded-lg bg-stone-100 text-stone-700 text-xs font-medium hover:bg-stone-200 transition-all">
                   Open
                 </button>
                 {r.status === "pending" && (
                   <>
-                    <button onClick={async () => { await supabase.from("service_requests").update({ status: "accepted" } as any).eq("id", r.id); reload(); toast.success("Accepted"); }}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-medium hover:bg-emerald-200 transition-all">Accept</button>
-                    <button onClick={async () => { await supabase.from("service_requests").update({ status: "rejected" } as any).eq("id", r.id); reload(); toast.success("Rejected"); }}
-                      className="px-2.5 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-medium hover:bg-red-200 transition-all">Reject</button>
+                    <button onClick={() => quickAction(r.id, "accepted")}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-medium hover:bg-emerald-200 transition-all flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" /> Accept
+                    </button>
+                    <button onClick={() => quickAction(r.id, "rejected")}
+                      className="px-2.5 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-medium hover:bg-red-200 transition-all flex items-center gap-1">
+                      <XCircle className="w-3 h-3" /> Reject
+                    </button>
                   </>
                 )}
               </div>
@@ -165,14 +152,14 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
         ))}
       </Table>
 
-      {/* Detail modal */}
+      {/* Detail panel */}
       <AnimatePresence>
         {active && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/40 flex items-start justify-end p-4 overflow-y-auto">
             <motion.div initial={{ x: 60, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 60, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[95vh] overflow-y-auto">
-              {/* Header */}
+              className="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[95vh] overflow-y-auto">
+
               <div className="flex items-start justify-between gap-3 p-5 border-b border-stone-100 sticky top-0 bg-white z-10">
                 <div>
                   <h2 className="font-bold text-stone-800">{active.title}</h2>
@@ -204,7 +191,7 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
 
                 {/* Status control */}
                 <div>
-                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">Status Control</p>
+                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">Status</p>
                   <div className="flex gap-2 flex-wrap">
                     {STATUSES.map(s => (
                       <button key={s} onClick={() => setStatus(s)} disabled={saving}
@@ -215,55 +202,35 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
                   </div>
                 </div>
 
-                {/* Final price + assign */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Set Final Price ($)</Label>
-                    <div className="flex gap-2">
+                {/* Price + Payment Link */}
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Pricing & Payment</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Final Price ($)</Label>
                       <Input value={finalPrice} onChange={e => setFinalPrice(e.target.value)} type="number" min="0" placeholder="0" className="rounded-xl h-9 text-sm" />
-                      <Button onClick={savePrice} size="sm" className="rounded-xl bg-stone-800 text-white border-0 h-9 px-3">Set</Button>
                     </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Assign Employee</Label>
-                    <div className="flex gap-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Assign Employee</Label>
                       <Select value={assignTo} onValueChange={setAssignTo}>
-                        <SelectTrigger className="rounded-xl h-9 text-sm flex-1">
-                          <SelectValue placeholder="Select…" />
-                        </SelectTrigger>
+                        <SelectTrigger className="rounded-xl h-9 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
                         <SelectContent>
                           {employees.map((e: any) => (
                             <SelectItem key={e.id} value={e.id}>{e.full_name || e.email} {e.employee_code ? `(${e.employee_code})` : ""}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button onClick={assign} size="sm" className="rounded-xl bg-stone-800 text-white border-0 h-9 px-3">Assign</Button>
                     </div>
                   </div>
-                </div>
-
-                {/* Negotiation */}
-                <div>
-                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">Negotiation ({Math.floor(negs.length / 2)}/3 rounds)</p>
-                  {negs.length > 0 && (
-                    <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
-                      {negs.map((n: any) => (
-                        <div key={n.id} className={`flex ${n.actor === "admin" ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[80%] px-3 py-2 rounded-xl text-xs ${n.actor === "admin" ? "bg-rose-50 text-rose-800" : "bg-stone-100 text-stone-700"}`}>
-                            <p className="font-semibold">${Number(n.proposed_price).toLocaleString()}</p>
-                            {n.message && <p className="mt-0.5 opacity-70">{n.message}</p>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {negs.length < 6 && (
-                    <div className="flex gap-2">
-                      <Input value={counter} onChange={e => setCounter(e.target.value)} type="number" placeholder="Counter price" className="rounded-xl h-9 text-sm flex-1" />
-                      <Input value={counterMsg} onChange={e => setCounterMsg(e.target.value)} placeholder="Note (optional)" className="rounded-xl h-9 text-sm flex-1" />
-                      <Button onClick={sendNeg} size="sm" className="rounded-xl bg-rose-500 text-white border-0 h-9 px-3">Send</Button>
-                    </div>
-                  )}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Stripe Payment Link (optional — client pays with 1 click)</Label>
+                    <Input value={stripeLink} onChange={e => setStripeLink(e.target.value)} placeholder="https://buy.stripe.com/..." className="rounded-xl h-9 text-sm" />
+                    <p className="text-[11px] text-stone-400">Create at stripe.com/payment-links — supports Google Pay, Apple Pay, UPI, card</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={savePrice} className="rounded-xl bg-rose-500 text-white border-0 h-9 px-4 text-sm">Save Price & Link</Button>
+                    <Button onClick={assign} variant="outline" className="rounded-xl h-9 px-4 text-sm">Assign Employee</Button>
+                  </div>
                 </div>
 
                 {/* Chat */}
