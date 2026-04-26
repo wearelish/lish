@@ -5,22 +5,42 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { X, Send, CheckCircle, XCircle } from "lucide-react";
+import { X, Send, CheckCircle, XCircle, Eye } from "lucide-react";
 import { SectionHeader, statusBadge, Table, TR, TD } from "./shared";
 
-const STATUSES = ["pending", "accepted", "rejected", "in_progress", "completed", "cancelled"];
+const db = supabase as any;
+
+const PIPELINE_STATUSES = [
+  "pending", "under_review", "price_sent", "in_progress", "delivered", "completed", "rejected", "cancelled"
+];
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Submitted", under_review: "Under Review", price_sent: "Price Sent",
+  in_progress: "In Progress", delivered: "Delivered", completed: "Completed",
+  rejected: "Rejected", cancelled: "Cancelled",
+};
 
 export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) => {
   const qc = useQueryClient();
   const [active, setActive] = useState<any>(null);
   const [filter, setFilter] = useState("all");
-  const [finalPrice, setFinalPrice] = useState("");
-  const [stripeLink, setStripeLink] = useState("");
-  const [assignTo, setAssignTo] = useState("");
-  const [chatMsg, setChatMsg] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Proposal form
+  const [propPrice, setPropPrice] = useState("");
+  const [propDeadline, setPropDeadline] = useState("");
+  const [propNote, setPropNote] = useState("");
+  const [propStripe, setPropStripe] = useState("");
+
+  // Delivery form
+  const [deliveryUrl, setDeliveryUrl] = useState("");
+  const [deliveryNote, setDeliveryNote] = useState("");
+
+  // Assign
+  const [assignTo, setAssignTo] = useState("");
 
   const { data: requests = [] } = useQuery({
     queryKey: ["ad-requests-full"],
@@ -42,41 +62,50 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
     },
   });
 
-  const { data: msgs = [] } = useQuery({
-    queryKey: ["ad-msgs", active?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from("messages").select("*").eq("request_id", active!.id).order("created_at");
-      return data ?? [];
-    },
-    enabled: !!active?.id,
-    refetchInterval: 4000,
-  });
+  const reload = () => qc.invalidateQueries({ queryKey: ["ad-requests-full"] });
 
-  const reload = () => {
-    qc.invalidateQueries({ queryKey: ["ad-requests-full"] });
-    qc.invalidateQueries({ queryKey: ["ad-msgs", active?.id] });
-  };
-
-  const setStatus = async (status: string) => {
-    if (!active) return;
+  const setStatus = async (id: string, status: string) => {
     setSaving(true);
-    const { error } = await supabase.from("service_requests").update({ status } as any).eq("id", active.id);
+    const { error } = await supabase.from("service_requests").update({ status } as any).eq("id", id);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    setActive({ ...active, status });
+    if (active?.id === id) setActive({ ...active, status });
     reload();
-    toast.success(`Status → ${status}`);
+    toast.success(`→ ${STATUS_LABELS[status] ?? status}`);
   };
 
-  const savePrice = async () => {
-    if (!active || !finalPrice) return;
-    const updates: any = { final_price: Number(finalPrice) };
-    if (stripeLink) updates.stripe_payment_link = stripeLink;
+  const sendProposal = async () => {
+    if (!active || !propPrice) { toast.error("Enter a price"); return; }
+    setSaving(true);
+    const updates: any = {
+      final_price: Number(propPrice),
+      status: "price_sent",
+      proposal_note: propNote || null,
+      proposal_deadline: propDeadline || null,
+    };
+    if (propStripe) updates.stripe_payment_link = propStripe;
     const { error } = await supabase.from("service_requests").update(updates).eq("id", active.id);
+    setSaving(false);
     if (error) { toast.error(error.message); return; }
-    setActive({ ...active, final_price: Number(finalPrice), stripe_payment_link: stripeLink });
+    setActive({ ...active, ...updates });
     reload();
-    toast.success("Price saved — client can now pay");
+    toast.success("Proposal sent to client");
+  };
+
+  const deliver = async () => {
+    if (!active) return;
+    setSaving(true);
+    const { error } = await supabase.from("service_requests").update({
+      status: "delivered",
+      delivery_file_url: deliveryUrl || null,
+      delivery_note: deliveryNote || null,
+      delivered_at: new Date().toISOString(),
+    } as any).eq("id", active.id);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    setActive({ ...active, status: "delivered" });
+    reload();
+    toast.success("Delivery sent to client");
   };
 
   const assign = async () => {
@@ -88,63 +117,63 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
     toast.success("Employee assigned");
   };
 
-  const sendMsg = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatMsg.trim() || !active) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { error } = await supabase.from("messages").insert({ request_id: active.id, sender_id: user.id, body: chatMsg.trim() });
-    if (error) { toast.error(error.message); return; }
-    setChatMsg("");
-    reload();
-  };
-
-  const quickAction = async (id: string, status: "accepted" | "rejected") => {
-    const { error } = await supabase.from("service_requests").update({ status } as any).eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    reload();
-    toast.success(status === "accepted" ? "Request accepted" : "Request rejected");
+  const openRequest = (r: any) => {
+    setActive(r);
+    setPropPrice(r.final_price?.toString() ?? "");
+    setPropDeadline(r.proposal_deadline ?? "");
+    setPropNote(r.proposal_note ?? "");
+    setPropStripe(r.stripe_payment_link ?? "");
+    setDeliveryUrl(r.delivery_file_url ?? "");
+    setDeliveryNote(r.delivery_note ?? "");
+    setAssignTo(r.assigned_employee_id ?? "");
   };
 
   const filtered = filter === "all" ? requests : requests.filter((r: any) => r.status === filter);
 
   return (
     <div>
-      <SectionHeader title="Request Management" subtitle={`${requests.length} total requests`} />
+      <SectionHeader title="Request Pipeline" subtitle={`${requests.length} total · ${requests.filter((r: any) => r.status === "pending").length} new`} />
 
+      {/* Filter tabs */}
       <div className="flex gap-2 flex-wrap mb-4">
-        {["all", ...STATUSES].map(f => (
+        {["all", ...PIPELINE_STATUSES].map(f => (
           <button key={f} onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filter === f ? "bg-rose-500 text-white" : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"}`}>
-            {f.replace(/_/g, " ")}
+            {STATUS_LABELS[f] ?? f}
           </button>
         ))}
       </div>
 
-      <Table headers={["Title", "Budget", "Status", "Created", "Actions"]} empty={filtered.length === 0}>
+      <Table headers={["Title", "Status", "Price", "Payment", "Created", "Actions"]} empty={filtered.length === 0}>
         {filtered.map((r: any) => (
           <TR key={r.id}>
-            <TD><p className="font-medium max-w-[200px] truncate">{r.title}</p></TD>
-            <TD>{r.budget ? `$${Number(r.budget).toLocaleString()}` : "—"}</TD>
+            <TD><p className="font-medium max-w-[180px] truncate">{r.title}</p></TD>
             <TD>{statusBadge(r.status)}</TD>
+            <TD className="text-sm font-medium">{r.final_price ? `$${Number(r.final_price).toLocaleString()}` : "—"}</TD>
+            <TD>
+              <div className="flex gap-1 text-[10px]">
+                <span className={`px-1.5 py-0.5 rounded ${r.upfront_paid ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-400"}`}>40%</span>
+                <span className={`px-1.5 py-0.5 rounded ${r.final_paid ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-400"}`}>60%</span>
+              </div>
+            </TD>
             <TD className="text-xs text-stone-400">{new Date(r.created_at).toLocaleDateString()}</TD>
             <TD>
               <div className="flex gap-1.5 flex-wrap">
-                <button onClick={() => { setActive(r); setFinalPrice(r.final_price?.toString() ?? ""); setAssignTo(r.assigned_employee_id ?? ""); setStripeLink((r as any).stripe_payment_link ?? ""); }}
-                  className="px-2.5 py-1 rounded-lg bg-stone-100 text-stone-700 text-xs font-medium hover:bg-stone-200 transition-all">
-                  Open
+                <button onClick={() => openRequest(r)}
+                  className="px-2.5 py-1 rounded-lg bg-stone-100 text-stone-700 text-xs font-medium hover:bg-stone-200 transition-all flex items-center gap-1">
+                  <Eye className="w-3 h-3" /> Open
                 </button>
                 {r.status === "pending" && (
-                  <>
-                    <button onClick={() => quickAction(r.id, "accepted")}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-medium hover:bg-emerald-200 transition-all flex items-center gap-1">
-                      <CheckCircle className="w-3 h-3" /> Accept
-                    </button>
-                    <button onClick={() => quickAction(r.id, "rejected")}
-                      className="px-2.5 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-medium hover:bg-red-200 transition-all flex items-center gap-1">
-                      <XCircle className="w-3 h-3" /> Reject
-                    </button>
-                  </>
+                  <button onClick={() => setStatus(r.id, "under_review")}
+                    className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-medium hover:bg-amber-200 transition-all">
+                    Review
+                  </button>
+                )}
+                {r.status === "pending" && (
+                  <button onClick={() => setStatus(r.id, "rejected")}
+                    className="px-2.5 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-medium hover:bg-red-200 transition-all">
+                    Reject
+                  </button>
                 )}
               </div>
             </TD>
@@ -160,10 +189,15 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
             <motion.div initial={{ x: 60, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 60, opacity: 0 }}
               className="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[95vh] overflow-y-auto">
 
+              {/* Header */}
               <div className="flex items-start justify-between gap-3 p-5 border-b border-stone-100 sticky top-0 bg-white z-10">
                 <div>
                   <h2 className="font-bold text-stone-800">{active.title}</h2>
-                  <p className="text-xs text-stone-400 mt-0.5">ID: {active.id.slice(0, 12)}…</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    {statusBadge(active.status)}
+                    {active.upfront_paid && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">40% paid</span>}
+                    {active.final_paid && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">60% paid</span>}
+                  </div>
                 </div>
                 <button onClick={() => setActive(null)} className="text-stone-400 hover:text-stone-700"><X className="w-5 h-5" /></button>
               </div>
@@ -173,83 +207,85 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
                 <div>
                   <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-1">Description</p>
                   <p className="text-sm text-stone-700">{active.description}</p>
+                  {active.budget && <p className="text-xs text-stone-400 mt-1">Client budget: ${Number(active.budget).toLocaleString()}</p>}
                 </div>
 
-                {/* Meta */}
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: "Budget", value: active.budget ? `$${Number(active.budget).toLocaleString()}` : "—" },
-                    { label: "Final Price", value: active.final_price ? `$${Number(active.final_price).toLocaleString()}` : "—" },
-                    { label: "Deadline", value: active.deadline ? new Date(active.deadline).toLocaleDateString() : "—" },
-                  ].map(m => (
-                    <div key={m.label} className="bg-stone-50 rounded-xl p-3">
-                      <p className="text-[10px] text-stone-400 uppercase tracking-wider">{m.label}</p>
-                      <p className="text-sm font-semibold text-stone-800 mt-0.5">{m.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Status control */}
+                {/* Pipeline status buttons */}
                 <div>
-                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">Status</p>
+                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">Pipeline Stage</p>
                   <div className="flex gap-2 flex-wrap">
-                    {STATUSES.map(s => (
-                      <button key={s} onClick={() => setStatus(s)} disabled={saving}
+                    {PIPELINE_STATUSES.map(s => (
+                      <button key={s} onClick={() => setStatus(active.id, s)} disabled={saving}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${active.status === s ? "bg-rose-500 text-white border-rose-500" : "bg-white border-stone-200 text-stone-600 hover:bg-stone-50"}`}>
-                        {s.replace(/_/g, " ")}
+                        {STATUS_LABELS[s]}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Price + Payment Link */}
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Pricing & Payment</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Final Price ($)</Label>
-                      <Input value={finalPrice} onChange={e => setFinalPrice(e.target.value)} type="number" min="0" placeholder="0" className="rounded-xl h-9 text-sm" />
+                {/* Send Proposal — shown when under_review or price_sent */}
+                {["pending", "under_review", "price_sent"].includes(active.status) && (
+                  <div className="bg-amber-50 rounded-2xl p-4 space-y-3">
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Send Price Proposal</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Final Price ($) *</Label>
+                        <Input value={propPrice} onChange={e => setPropPrice(e.target.value)} type="number" min="0" placeholder="0" className="rounded-xl h-9 text-sm" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Deadline</Label>
+                        <Input type="date" value={propDeadline} onChange={e => setPropDeadline(e.target.value)} className="rounded-xl h-9 text-sm" />
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Assign Employee</Label>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Note to client (optional)</Label>
+                      <Textarea rows={2} value={propNote} onChange={e => setPropNote(e.target.value)} placeholder="Any notes for the client…" className="rounded-xl resize-none text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Stripe Payment Link (optional)</Label>
+                      <Input value={propStripe} onChange={e => setPropStripe(e.target.value)} placeholder="https://buy.stripe.com/..." className="rounded-xl h-9 text-sm" />
+                    </div>
+                    <Button onClick={sendProposal} disabled={saving} className="w-full rounded-xl bg-amber-500 text-white border-0 h-9 text-sm">
+                      {saving ? "Sending…" : "Send Proposal to Client"}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Assign employee */}
+                {["in_progress", "price_sent", "accepted"].includes(active.status) && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Assign Employee</p>
+                    <div className="flex gap-2">
                       <Select value={assignTo} onValueChange={setAssignTo}>
-                        <SelectTrigger className="rounded-xl h-9 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                        <SelectTrigger className="rounded-xl h-9 text-sm flex-1"><SelectValue placeholder="Select employee…" /></SelectTrigger>
                         <SelectContent>
                           {employees.map((e: any) => (
                             <SelectItem key={e.id} value={e.id}>{e.full_name || e.email} {e.employee_code ? `(${e.employee_code})` : ""}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      <Button onClick={assign} size="sm" className="rounded-xl bg-stone-800 text-white border-0 h-9 px-3">Assign</Button>
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Stripe Payment Link (optional — client pays with 1 click)</Label>
-                    <Input value={stripeLink} onChange={e => setStripeLink(e.target.value)} placeholder="https://buy.stripe.com/..." className="rounded-xl h-9 text-sm" />
-                    <p className="text-[11px] text-stone-400">Create at stripe.com/payment-links — supports Google Pay, Apple Pay, UPI, card</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={savePrice} className="rounded-xl bg-rose-500 text-white border-0 h-9 px-4 text-sm">Save Price & Link</Button>
-                    <Button onClick={assign} variant="outline" className="rounded-xl h-9 px-4 text-sm">Assign Employee</Button>
-                  </div>
-                </div>
+                )}
 
-                {/* Chat */}
-                <div>
-                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">Client Chat</p>
-                  <div className="bg-stone-50 rounded-xl p-3 max-h-48 overflow-y-auto space-y-2 mb-2">
-                    {msgs.length === 0 && <p className="text-xs text-stone-400 text-center py-4">No messages yet.</p>}
-                    {msgs.map((m: any) => (
-                      <div key={m.id} className="text-xs bg-white rounded-lg px-3 py-2 border border-stone-100">
-                        <p className="text-stone-400 mb-0.5">{m.sender_id.slice(0, 8)}…</p>
-                        <p className="text-stone-700">{m.body}</p>
-                      </div>
-                    ))}
+                {/* Deliver project */}
+                {active.status === "in_progress" && (
+                  <div className="bg-purple-50 rounded-2xl p-4 space-y-3">
+                    <p className="text-xs font-semibold text-purple-700 uppercase tracking-wider">Deliver Project</p>
+                    <div className="space-y-1">
+                      <Label className="text-xs">File URL (Google Drive, Dropbox, etc.)</Label>
+                      <Input value={deliveryUrl} onChange={e => setDeliveryUrl(e.target.value)} placeholder="https://drive.google.com/..." className="rounded-xl h-9 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Delivery note</Label>
+                      <Textarea rows={2} value={deliveryNote} onChange={e => setDeliveryNote(e.target.value)} placeholder="Notes about the delivery…" className="rounded-xl resize-none text-sm" />
+                    </div>
+                    <Button onClick={deliver} disabled={saving} className="w-full rounded-xl bg-purple-500 text-white border-0 h-9 text-sm">
+                      {saving ? "Delivering…" : "Mark as Delivered"}
+                    </Button>
                   </div>
-                  <form onSubmit={sendMsg} className="flex gap-2">
-                    <Input value={chatMsg} onChange={e => setChatMsg(e.target.value)} placeholder="Reply to client…" className="rounded-xl h-9 text-sm flex-1" />
-                    <Button type="submit" size="icon" className="rounded-xl bg-stone-800 text-white border-0 h-9 w-9"><Send className="w-3.5 h-3.5" /></Button>
-                  </form>
-                </div>
+                )}
               </div>
             </motion.div>
           </motion.div>
