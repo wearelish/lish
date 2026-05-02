@@ -41,6 +41,8 @@ export const CDNewRequest = ({ onNavigate }: { onNavigate: (s: CDSection) => voi
     };
 
     console.log('[CDNewRequest] Submitting request:', insertData);
+    console.log('[CDNewRequest] User ID:', uid);
+    console.log('[CDNewRequest] User object:', user);
 
     // Insert service request with detailed error handling
     const { data: requestData, error: requestError } = await supabase
@@ -50,16 +52,20 @@ export const CDNewRequest = ({ onNavigate }: { onNavigate: (s: CDSection) => voi
       .single();
     
     if (requestError) {
-      console.error('[CDNewRequest] Error:', requestError);
+      console.error('[CDNewRequest] Full Error Object:', JSON.stringify(requestError, null, 2));
+      console.error('[CDNewRequest] Error Code:', requestError.code);
+      console.error('[CDNewRequest] Error Message:', requestError.message);
+      console.error('[CDNewRequest] Error Details:', requestError.details);
+      console.error('[CDNewRequest] Error Hint:', requestError.hint);
       setSaving(false);
       
-      // Provide user-friendly error messages
+      // Provide user-friendly error messages with full details
       if (requestError.code === '42501') {
-        toast.error("Permission denied. Please ensure you're logged in as a client.");
+        toast.error(`Permission denied: ${requestError.message}`);
       } else if (requestError.message.includes('violates row-level security')) {
-        toast.error("Unable to submit request. Please contact support.");
+        toast.error(`RLS Policy Error: ${requestError.message}`);
       } else {
-        toast.error("Failed to submit request: " + requestError.message);
+        toast.error(`Failed: ${requestError.message} (Code: ${requestError.code})`);
       }
       return;
     }
