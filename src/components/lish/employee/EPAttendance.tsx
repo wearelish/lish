@@ -17,7 +17,6 @@ interface Props {
 export const EPAttendance = ({ checkedIn, onCheckedIn, today }: Props) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [justMarked, setJustMarked] = useState(false);
 
   const markAttendance = async () => {
     if (!user?.id || checkedIn) return;
@@ -36,8 +35,6 @@ export const EPAttendance = ({ checkedIn, onCheckedIn, today }: Props) => {
       toast.error(error.message);
       return;
     }
-    setJustMarked(true);
-    setTimeout(() => setJustMarked(false), 3000);
     onCheckedIn();
     toast.success("Attendance marked!");
   };

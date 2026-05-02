@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import {
   LayoutDashboard, FileText, FolderKanban, Users,
-  CreditCard, Wallet, Settings, Menu, X, LogOut, ChevronDown
+  CreditCard, Wallet, Settings, Menu, X, LogOut,
+  ChevronDown, MessageSquare, LifeBuoy, CalendarDays
 } from "lucide-react";
 import { LishLogo } from "@/components/lish/LishLogo";
 import { ADHome } from "./ADHome";
@@ -13,26 +14,42 @@ import { ADEmployees } from "./ADEmployees";
 import { ADPayments } from "./ADPayments";
 import { ADWithdrawals } from "./ADWithdrawals";
 import { ADSettings } from "./ADSettings";
+import { ADMessages } from "./ADMessages";
+import { ADSupport } from "./ADSupport";
+import { ADMeetings } from "./ADMeetings";
 import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationBell } from "@/components/lish/NotificationBell";
 import { NotificationPopup } from "@/components/lish/NotificationPopup";
 
-export type ADSection = "home" | "requests" | "projects" | "employees" | "payments" | "withdrawals" | "settings";
+export type ADSection =
+  | "home" | "requests" | "projects" | "employees"
+  | "payments" | "withdrawals" | "messages" | "support"
+  | "meetings" | "settings";
 
 const NAV: { id: ADSection; label: string; Icon: React.ElementType }[] = [
-  { id: "home", label: "Dashboard", Icon: LayoutDashboard },
-  { id: "requests", label: "Requests", Icon: FileText },
-  { id: "projects", label: "Projects", Icon: FolderKanban },
-  { id: "employees", label: "Employees", Icon: Users },
-  { id: "payments", label: "Payments", Icon: CreditCard },
+  { id: "home",        label: "Dashboard",   Icon: LayoutDashboard },
+  { id: "requests",    label: "Requests",    Icon: FileText },
+  { id: "projects",    label: "Projects",    Icon: FolderKanban },
+  { id: "employees",   label: "Employees",   Icon: Users },
+  { id: "payments",    label: "Payments",    Icon: CreditCard },
   { id: "withdrawals", label: "Withdrawals", Icon: Wallet },
-  { id: "settings", label: "Settings", Icon: Settings },
+  { id: "messages",    label: "Messages",    Icon: MessageSquare },
+  { id: "support",     label: "Support",     Icon: LifeBuoy },
+  { id: "meetings",    label: "Meetings",    Icon: CalendarDays },
+  { id: "settings",    label: "Settings",    Icon: Settings },
 ];
 
 const VIEWS: Record<ADSection, React.ElementType> = {
-  home: ADHome, requests: ADRequests, projects: ADProjects,
-  employees: ADEmployees, payments: ADPayments,
-  withdrawals: ADWithdrawals, settings: ADSettings,
+  home: ADHome,
+  requests: ADRequests,
+  projects: ADProjects,
+  employees: ADEmployees,
+  payments: ADPayments,
+  withdrawals: ADWithdrawals,
+  messages: ADMessages,
+  support: ADSupport,
+  meetings: ADMeetings,
+  settings: ADSettings,
 };
 
 export const AdminDashboard = () => {

@@ -47,6 +47,9 @@ export const ADProjects = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
     toast.success("Project updated");
     setEditing(null); setDeadline(""); setAssignTo("");
     qc.invalidateQueries({ queryKey: ["ad-projects"] });
+    qc.invalidateQueries({ queryKey: ["cd-projects"] });
+    qc.invalidateQueries({ queryKey: ["cd-requests"] });
+    qc.invalidateQueries({ queryKey: ["ep-tasks"] });
   };
 
   const setStatus = async (id: string, status: string) => {
@@ -54,6 +57,9 @@ export const ADProjects = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
     if (error) { toast.error(error.message); return; }
     toast.success(`Status → ${status}`);
     qc.invalidateQueries({ queryKey: ["ad-projects"] });
+    qc.invalidateQueries({ queryKey: ["cd-projects"] });
+    qc.invalidateQueries({ queryKey: ["cd-requests"] });
+    qc.invalidateQueries({ queryKey: ["cd-payments"] });
   };
 
   const filtered = filter === "all" ? projects : projects.filter((p: any) => p.status === filter);

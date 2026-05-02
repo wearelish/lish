@@ -45,10 +45,14 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
   const { data: requests = [] } = useQuery({
     queryKey: ["ad-requests-full"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("service_requests").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("service_requests")
+        .select("*, profiles!service_requests_client_id_fkey(full_name, email)")
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
+    refetchInterval: 10000,
   });
 
   const { data: employees = [] } = useQuery({
@@ -62,7 +66,15 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
     },
   });
 
-  const reload = () => qc.invalidateQueries({ queryKey: ["ad-requests-full"] });
+  const reload = () => {
+    qc.invalidateQueries({ queryKey: ["ad-requests-full"] });
+    qc.invalidateQueries({ queryKey: ["ad-requests"] });
+    // Invalidate client-side queries so their dashboards update live
+    qc.invalidateQueries({ queryKey: ["cd-requests"] });
+    qc.invalidateQueries({ queryKey: ["cd-projects"] });
+    qc.invalidateQueries({ queryKey: ["cd-payments"] });
+    qc.invalidateQueries({ queryKey: ["cd-home-msgs"] });
+  };
 
   const setStatus = async (id: string, status: string) => {
     setSaving(true);
@@ -147,7 +159,9 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
       <Table headers={["Title", "Status", "Price", "Payment", "Created", "Actions"]} empty={filtered.length === 0}>
         {filtered.map((r: any) => (
           <TR key={r.id}>
-            <TD><p className="font-medium max-w-[180px] truncate">{r.title}</p></TD>
+            <TD><p className="font-medium max-w-[180px] truncate">{r.title}</p>
+              <p className="text-[10px] text-stone-400 mt-0.5">{(r as any).profiles?.full_name || (r as any).profiles?.email || r.client_id?.slice(0, 8) + "…"}</p>
+            </TD>
             <TD>{statusBadge(r.status)}</TD>
             <TD className="text-sm font-medium">{r.final_price ? `$${Number(r.final_price).toLocaleString()}` : "—"}</TD>
             <TD>

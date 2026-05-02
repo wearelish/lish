@@ -25,6 +25,9 @@ export const ADWithdrawals = ({ onNavigate: _ }: { onNavigate: (s: any) => void 
     if (error) { toast.error(error.message); return; }
     toast.success(`Withdrawal ${status}`);
     qc.invalidateQueries({ queryKey: ["ad-withdrawals-full"] });
+    qc.invalidateQueries({ queryKey: ["ad-withdrawals-home"] });
+    // Sync employee dashboard
+    qc.invalidateQueries({ queryKey: ["ep-withdrawals"] });
   };
 
   const pending = withdrawals.filter((w: any) => w.status === "pending").length;

@@ -51,8 +51,9 @@ const PayModal = ({ request, type, onClose, onSuccess }: {
     const updates: any = type === "upfront"
       ? { upfront_paid: true, status: "in_progress" }
       : { final_paid: true, status: "completed" };
-    await supabase.from("service_requests").update(updates).eq("id", request.id);
+    const { error } = await supabase.from("service_requests").update(updates).eq("id", request.id);
     setPaying(false);
+    if (error) { toast.error("Payment confirmation failed: " + error.message); return; }
     setDone(true);
     setTimeout(() => { onSuccess(); onClose(); }, 1200);
   };

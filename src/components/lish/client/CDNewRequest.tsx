@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +17,7 @@ const db = supabase as any;
 export const CDNewRequest = ({ onNavigate }: { onNavigate: (s: CDSection) => void }) => {
   const { user } = useAuth();
   const uid = user?.id;
+  const qc = useQueryClient();
   const [form, setForm] = useState({ title: "", description: "", budget: "", deadline: "", meetingRequest: false });
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -25,7 +27,6 @@ export const CDNewRequest = ({ onNavigate }: { onNavigate: (s: CDSection) => voi
     if (!uid) return;
     setSaving(true);
 
-    // Optimistic — show success immediately, insert in background
     const insertData = {
       client_id: uid,
       title: form.title,
@@ -34,22 +35,35 @@ export const CDNewRequest = ({ onNavigate }: { onNavigate: (s: CDSection) => voi
       deadline: form.deadline || null,
     };
 
-    // Show done state right away
-    setSaving(false);
-    setDone(true);
+    // Insert service request with proper error handling
+    const { error: requestError } = await supabase.from("service_requests").insert(insertData);
+    
+    if (requestError) {
+      setSaving(false);
+      toast.error("Failed to submit request: " + requestError.message);
+      return;
+    }
 
-    // Fire insert without waiting
-    supabase.from("service_requests").insert(insertData).then(({ error }) => {
-      if (error) toast.error("Request may not have saved: " + error.message);
-    });
-
+    // Insert meeting if requested (with error handling)
     if (form.meetingRequest) {
-      db.from("meetings").insert({
+      const { error: meetingError } = await db.from("meetings").insert({
         client_id: uid,
         title: `Meeting for: ${form.title}`,
         description: "Requested alongside service submission.",
       });
+      
+      if (meetingError) {
+        // Don't fail the whole submission, just warn
+        toast.warning("Request submitted, but meeting request failed");
+      }
     }
+
+    setSaving(false);
+    setDone(true);
+    toast.success("Request submitted successfully!");
+    // Sync admin dashboard
+    qc.invalidateQueries({ queryKey: ["ad-requests"] });
+    qc.invalidateQueries({ queryKey: ["ad-requests-full"] });
   };
 
   if (done) {

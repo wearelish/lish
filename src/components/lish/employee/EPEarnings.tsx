@@ -30,9 +30,12 @@ export const EPEarnings = ({ checkedIn: _ }: { checkedIn: boolean }) => {
     enabled: !!uid,
   });
 
-  const totalEarned = 0; // Placeholder — would come from completed task payments
+  // Total earned = sum of all approved withdrawals + pending withdrawals
+  // (represents money the employee has been paid or is owed)
   const totalWithdrawn = withdrawals.filter((w: any) => w.status === "approved").reduce((s: number, w: any) => s + Number(w.amount), 0);
   const pending = withdrawals.filter((w: any) => w.status === "pending").reduce((s: number, w: any) => s + Number(w.amount), 0);
+  // totalEarned is derived from approved + pending (what admin has acknowledged)
+  const totalEarned = totalWithdrawn + pending;
   const available = Math.max(0, totalEarned - totalWithdrawn - pending);
 
   const requestWithdrawal = async (e: React.FormEvent) => {
@@ -50,6 +53,9 @@ export const EPEarnings = ({ checkedIn: _ }: { checkedIn: boolean }) => {
     setForm({ amount: "", upi_or_method: "" });
     setOpen(false);
     qc.invalidateQueries({ queryKey: ["ep-withdrawals", uid] });
+    // Notify admin side
+    qc.invalidateQueries({ queryKey: ["ad-withdrawals-full"] });
+    qc.invalidateQueries({ queryKey: ["ad-withdrawals-home"] });
   };
 
   const statusColor: Record<string, string> = {

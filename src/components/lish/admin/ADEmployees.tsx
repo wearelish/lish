@@ -63,18 +63,31 @@ export const ADEmployees = ({ onNavigate: _ }: { onNavigate: (s: any) => void })
     e.preventDefault();
     if (!form.email || !form.password || !form.fullName || !form.code) { toast.error("All fields required"); return; }
     setSaving(true);
-    // Create user via admin API is not available client-side; use signUp then set role
+
+    // Save current admin session before creating employee
+    const { data: { session: adminSession } } = await supabase.auth.getSession();
+
+    // Create the employee account
     const { data, error } = await supabase.auth.signUp({
       email: form.email, password: form.password,
       options: { data: { full_name: form.fullName } },
     });
     if (error || !data.user) { setSaving(false); toast.error(error?.message ?? "Signup failed"); return; }
     const uid = data.user.id;
-    // Set employee role
+
+    // Set employee role and code
     await supabase.from("user_roles").delete().eq("user_id", uid);
     await supabase.from("user_roles").insert({ user_id: uid, role: "employee" });
-    // Set employee code
     await supabase.from("profiles").update({ employee_code: form.code, full_name: form.fullName } as any).eq("id", uid);
+
+    // Restore admin session so the admin isn't logged out
+    if (adminSession) {
+      await supabase.auth.setSession({
+        access_token: adminSession.access_token,
+        refresh_token: adminSession.refresh_token,
+      });
+    }
+
     setSaving(false);
     toast.success(`Employee created — ID: ${form.code}`);
     setForm({ email: "", password: "", fullName: "", code: "" });
@@ -91,6 +104,10 @@ export const ADEmployees = ({ onNavigate: _ }: { onNavigate: (s: any) => void })
     toast.success("Task assigned");
     setTaskTitle(""); setTaskReq("");
     qc.invalidateQueries({ queryKey: ["ad-emp-tasks", active.id] });
+    // Sync employee dashboard
+    qc.invalidateQueries({ queryKey: ["ep-tasks"] });
+    qc.invalidateQueries({ queryKey: ["ep-perf-tasks"] });
+    qc.invalidateQueries({ queryKey: ["ep-act-tasks"] });
   };
 
   return (

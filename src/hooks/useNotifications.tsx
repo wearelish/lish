@@ -47,7 +47,7 @@ export const useNotifications = () => {
         const popupItem: PopupNotification = { ...newest, popupId: newest.id };
         setPopup(popupItem);
         if (popupTimerRef.current) clearTimeout(popupTimerRef.current);
-        popupTimerRef.current = setTimeout(() => setPopup(null), 1000);
+        popupTimerRef.current = setTimeout(() => setPopup(null), 5000);
       }
     }
   } catch { /* silent fail */ }

@@ -41,6 +41,10 @@ export const EPTasks = ({ checkedIn }: { checkedIn: boolean }) => {
     if (error) { toast.error(error.message); return; }
     toast.success(status === "done" ? "Task completed! 🎉" : "Task started");
     qc.invalidateQueries({ queryKey: ["ep-tasks", uid] });
+    qc.invalidateQueries({ queryKey: ["ep-perf-tasks", uid] });
+    qc.invalidateQueries({ queryKey: ["ep-act-tasks", uid] });
+    // Sync admin view
+    qc.invalidateQueries({ queryKey: ["ad-emp-tasks"] });
   };
 
   const todo = tasks.filter((t: any) => t.status === "todo");

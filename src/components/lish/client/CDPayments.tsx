@@ -129,7 +129,7 @@ export const CDPayments = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
         .from("service_requests")
         .select("id, title, final_price, upfront_paid, final_paid, status, created_at, deadline")
         .eq("client_id", uid!)
-        .in("status", ["accepted", "in_progress", "completed"] as any)
+        .in("status", ["accepted", "in_progress", "delivered", "completed"] as any)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -148,6 +148,10 @@ export const CDPayments = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
   const onPaySuccess = () => {
     qc.invalidateQueries({ queryKey: ["cd-payments", uid] });
     qc.invalidateQueries({ queryKey: ["cd-requests", uid] });
+    // Sync admin payment panel
+    qc.invalidateQueries({ queryKey: ["ad-payments-full"] });
+    qc.invalidateQueries({ queryKey: ["ad-requests"] });
+    qc.invalidateQueries({ queryKey: ["ad-requests-full"] });
     toast.success("Payment recorded! Admin will verify shortly.");
   };
 
@@ -189,7 +193,7 @@ export const CDPayments = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
             const upfront = price * 0.4;
             const final = price * 0.6;
             const needsUpfront = !r.upfront_paid && price > 0;
-            const needsFinal = r.upfront_paid && !r.final_paid && r.status === "completed";
+            const needsFinal = r.upfront_paid && !r.final_paid && r.status === "delivered";
 
             return (
               <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}

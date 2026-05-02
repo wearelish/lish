@@ -20,10 +20,18 @@ export const ADPayments = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
   });
 
   const markPaid = async (id: string, field: "upfront_paid" | "final_paid") => {
-    const { error } = await supabase.from("service_requests").update({ [field]: true } as any).eq("id", id);
+    const updates: any = { [field]: true };
+    // When upfront is paid, move to in_progress
+    if (field === "upfront_paid") updates.status = "in_progress";
+    const { error } = await supabase.from("service_requests").update(updates).eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("Marked as paid");
     qc.invalidateQueries({ queryKey: ["ad-payments-full"] });
+    qc.invalidateQueries({ queryKey: ["ad-requests"] });
+    // Sync client dashboards
+    qc.invalidateQueries({ queryKey: ["cd-payments"] });
+    qc.invalidateQueries({ queryKey: ["cd-projects"] });
+    qc.invalidateQueries({ queryKey: ["cd-requests"] });
   };
 
   const totalRevenue = requests.reduce((s: number, r: any) => {

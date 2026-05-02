@@ -2,8 +2,11 @@ export const statusBadge = (status: string) => {
   const map: Record<string, string> = {
     pending: "bg-amber-100 text-amber-700",
     negotiating: "bg-purple-100 text-purple-700",
+    under_review: "bg-amber-100 text-amber-700",
+    price_sent: "bg-blue-100 text-blue-700",
     accepted: "bg-blue-100 text-blue-700",
     in_progress: "bg-primary text-white",
+    delivered: "bg-purple-100 text-purple-700",
     review: "bg-indigo-100 text-indigo-700",
     completed: "bg-emerald-100 text-emerald-700",
     rejected: "bg-red-100 text-red-700",
