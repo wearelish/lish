@@ -97,7 +97,18 @@ export const ADSettings = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
           </form>
         </motion.div>
 
-        <Button onClick={signOut} variant="outline" className="rounded-xl border-red-200 text-red-500 hover:bg-red-50 h-9 px-5 text-sm">
+        <Button 
+          onClick={async () => {
+            try {
+              console.log('[ADSettings] Sign out clicked');
+              await signOut();
+            } catch (error) {
+              console.error('[ADSettings] Sign out error:', error);
+            }
+          }} 
+          variant="outline" 
+          className="rounded-xl border-red-200 text-red-500 hover:bg-red-50 h-9 px-5 text-sm"
+        >
           Sign out
         </Button>
       </div>

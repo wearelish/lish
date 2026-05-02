@@ -102,7 +102,17 @@ export const EmployeeDashboard = () => {
               <p className="text-[10px] text-primary">Employee</p>
             </div>
           </div>
-          <button onClick={signOut} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-stone-500 hover:bg-stone-50 transition-all">
+          <button 
+            onClick={async () => {
+              try {
+                console.log('[EmployeeDashboard] Sign out clicked');
+                await signOut();
+              } catch (error) {
+                console.error('[EmployeeDashboard] Sign out error:', error);
+              }
+            }} 
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-stone-500 hover:bg-stone-50 transition-all"
+          >
             <LogOut className="w-4 h-4" /> Sign out
           </button>
         </div>

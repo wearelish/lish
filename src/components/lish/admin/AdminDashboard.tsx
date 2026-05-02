@@ -98,7 +98,17 @@ export const AdminDashboard = () => {
               <p className="text-[10px] text-rose-500 font-medium">Administrator</p>
             </div>
           </div>
-          <button onClick={signOut} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-stone-500 hover:bg-stone-50 hover:text-stone-800 transition-all">
+          <button 
+            onClick={async () => {
+              try {
+                console.log('[AdminDashboard] Sign out clicked');
+                await signOut();
+              } catch (error) {
+                console.error('[AdminDashboard] Sign out error:', error);
+              }
+            }} 
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-stone-500 hover:bg-stone-50 hover:text-stone-800 transition-all"
+          >
             <LogOut className="w-4 h-4" /> Sign out
           </button>
         </div>

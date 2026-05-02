@@ -109,7 +109,18 @@ export const CDSettings = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
 
         {/* Sign out */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <Button onClick={signOut} variant="outline" className="rounded-full border-destructive/30 text-destructive hover:bg-destructive/5 gap-2">
+          <Button 
+            onClick={async () => {
+              try {
+                console.log('[CDSettings] Sign out clicked');
+                await signOut();
+              } catch (error) {
+                console.error('[CDSettings] Sign out error:', error);
+              }
+            }} 
+            variant="outline" 
+            className="rounded-full border-destructive/30 text-destructive hover:bg-destructive/5 gap-2"
+          >
             <LogOut className="w-4 h-4" /> Sign out
           </Button>
         </motion.div>

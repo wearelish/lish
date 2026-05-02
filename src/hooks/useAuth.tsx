@@ -79,11 +79,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setRole(null); setUser(null); setSession(null);
-    setCachedRole(null);
-    // Force page reload to clear all state cleanly
-    window.location.href = "/";
+    try {
+      console.log('[useAuth] Signing out...');
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('[useAuth] Sign out error:', error);
+        throw error;
+      }
+      console.log('[useAuth] Sign out successful');
+      setRole(null); 
+      setUser(null); 
+      setSession(null);
+      setCachedRole(null);
+      // Force page reload to clear all state cleanly
+      window.location.href = "/";
+    } catch (error) {
+      console.error('[useAuth] Sign out failed:', error);
+      // Even if signOut fails, clear local state and redirect
+      setRole(null); 
+      setUser(null); 
+      setSession(null);
+      setCachedRole(null);
+      window.location.href = "/";
+    }
   };
 
   const refreshRole = async () => { if (user) await loadRole(user.id); };

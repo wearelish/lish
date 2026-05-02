@@ -17,9 +17,18 @@ export const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate("/");
-    setMobileOpen(false);
+    try {
+      console.log('[Navbar] Sign out button clicked');
+      await signOut();
+      console.log('[Navbar] Sign out completed, navigating to home');
+      navigate("/");
+      setMobileOpen(false);
+    } catch (error) {
+      console.error('[Navbar] Sign out error:', error);
+      // Still navigate even if there's an error
+      navigate("/");
+      setMobileOpen(false);
+    }
   };
 
   const glassStyle: React.CSSProperties = {
