@@ -10,6 +10,7 @@ import Signup from "./pages/Signup.tsx";
 import { AuthProvider } from "./hooks/useAuth.tsx";
 import { ErrorBoundary } from "./components/common/ErrorBoundary.tsx";
 import { OfflineIndicator } from "./components/common/OfflineIndicator.tsx";
+import { RoleDebugger } from "./components/common/RoleDebugger.tsx";
 
 // Enhanced Query Client with better defaults
 const queryClient = new QueryClient({
@@ -36,6 +37,7 @@ const App = () => (
         <OfflineIndicator />
         <BrowserRouter>
           <AuthProvider>
+            <RoleDebugger />
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />

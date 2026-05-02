@@ -24,25 +24,47 @@ export const CDNewRequest = ({ onNavigate }: { onNavigate: (s: CDSection) => voi
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uid) return;
+    if (!uid) {
+      toast.error("You must be logged in to submit a request");
+      return;
+    }
+    
     setSaving(true);
 
     const insertData = {
       client_id: uid,
-      title: form.title,
-      description: form.description,
+      title: form.title.trim(),
+      description: form.description.trim(),
       budget: form.budget ? Number(form.budget) : null,
       deadline: form.deadline || null,
+      status: 'pending' as const, // Explicitly set initial status
     };
 
-    // Insert service request with proper error handling
-    const { error: requestError } = await supabase.from("service_requests").insert(insertData);
+    console.log('[CDNewRequest] Submitting request:', insertData);
+
+    // Insert service request with detailed error handling
+    const { data: requestData, error: requestError } = await supabase
+      .from("service_requests")
+      .insert(insertData)
+      .select()
+      .single();
     
     if (requestError) {
+      console.error('[CDNewRequest] Error:', requestError);
       setSaving(false);
-      toast.error("Failed to submit request: " + requestError.message);
+      
+      // Provide user-friendly error messages
+      if (requestError.code === '42501') {
+        toast.error("Permission denied. Please ensure you're logged in as a client.");
+      } else if (requestError.message.includes('violates row-level security')) {
+        toast.error("Unable to submit request. Please contact support.");
+      } else {
+        toast.error("Failed to submit request: " + requestError.message);
+      }
       return;
     }
+
+    console.log('[CDNewRequest] Request created:', requestData);
 
     // Insert meeting if requested (with error handling)
     if (form.meetingRequest) {
@@ -50,9 +72,11 @@ export const CDNewRequest = ({ onNavigate }: { onNavigate: (s: CDSection) => voi
         client_id: uid,
         title: `Meeting for: ${form.title}`,
         description: "Requested alongside service submission.",
+        status: 'pending',
       });
       
       if (meetingError) {
+        console.warn('[CDNewRequest] Meeting error:', meetingError);
         // Don't fail the whole submission, just warn
         toast.warning("Request submitted, but meeting request failed");
       }
@@ -61,9 +85,11 @@ export const CDNewRequest = ({ onNavigate }: { onNavigate: (s: CDSection) => voi
     setSaving(false);
     setDone(true);
     toast.success("Request submitted successfully!");
-    // Sync admin dashboard
+    
+    // Sync queries
     qc.invalidateQueries({ queryKey: ["ad-requests"] });
     qc.invalidateQueries({ queryKey: ["ad-requests-full"] });
+    qc.invalidateQueries({ queryKey: ["cd-requests"] });
   };
 
   if (done) {
