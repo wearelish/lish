@@ -64,15 +64,26 @@ export const ADEmployees = ({ onNavigate: _ }: { onNavigate: (s: any) => void })
     if (!form.email || !form.password || !form.fullName || !form.code) { toast.error("All fields required"); return; }
     setSaving(true);
 
-    // Save current admin session before creating employee
+    // Save current admin session BEFORE creating employee account
+    // (signUp can overwrite the current session in some Supabase versions)
     const { data: { session: adminSession } } = await supabase.auth.getSession();
+    if (!adminSession) { setSaving(false); toast.error("Admin session lost. Please log in again."); return; }
 
     // Create the employee account
     const { data, error } = await supabase.auth.signUp({
       email: form.email, password: form.password,
       options: { data: { full_name: form.fullName } },
     });
-    if (error || !data.user) { setSaving(false); toast.error(error?.message ?? "Signup failed"); return; }
+    if (error || !data.user) { 
+      setSaving(false); 
+      toast.error(error?.message ?? "Signup failed");
+      // Restore admin session if it was overwritten
+      await supabase.auth.setSession({
+        access_token: adminSession.access_token,
+        refresh_token: adminSession.refresh_token,
+      });
+      return; 
+    }
     const uid = data.user.id;
 
     // Set employee role and code
@@ -80,13 +91,11 @@ export const ADEmployees = ({ onNavigate: _ }: { onNavigate: (s: any) => void })
     await supabase.from("user_roles").insert({ user_id: uid, role: "employee" });
     await supabase.from("profiles").update({ employee_code: form.code, full_name: form.fullName } as any).eq("id", uid);
 
-    // Restore admin session so the admin isn't logged out
-    if (adminSession) {
-      await supabase.auth.setSession({
-        access_token: adminSession.access_token,
-        refresh_token: adminSession.refresh_token,
-      });
-    }
+    // Always restore admin session so the admin isn't logged out
+    await supabase.auth.setSession({
+      access_token: adminSession.access_token,
+      refresh_token: adminSession.refresh_token,
+    });
 
     setSaving(false);
     toast.success(`Employee created — ID: ${form.code}`);

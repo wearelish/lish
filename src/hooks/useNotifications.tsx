@@ -36,21 +36,21 @@ export const useNotifications = () => {
         .limit(20);
       if (error || !data) return;
 
-    setNotifications(data);
-    const unread = data.filter((n: Notification) => !n.is_read);
-    setUnreadCount(unread.length);
+      setNotifications(data);
+      const unread = data.filter((n: Notification) => !n.is_read);
+      setUnreadCount(unread.length);
 
-    if (unread.length > 0) {
-      const newest = unread[0] as Notification;
-      if (newest.id !== lastIdRef.current) {
-        lastIdRef.current = newest.id;
-        const popupItem: PopupNotification = { ...newest, popupId: newest.id };
-        setPopup(popupItem);
-        if (popupTimerRef.current) clearTimeout(popupTimerRef.current);
-        popupTimerRef.current = setTimeout(() => setPopup(null), 5000);
+      if (unread.length > 0) {
+        const newest = unread[0] as Notification;
+        if (newest.id !== lastIdRef.current) {
+          lastIdRef.current = newest.id;
+          const popupItem: PopupNotification = { ...newest, popupId: newest.id };
+          setPopup(popupItem);
+          if (popupTimerRef.current) clearTimeout(popupTimerRef.current);
+          popupTimerRef.current = setTimeout(() => setPopup(null), 5000);
+        }
       }
-    }
-  } catch { /* silent fail */ }
+    } catch { /* silent fail */ }
   }, [uid]);
 
   const markAllRead = useCallback(async () => {

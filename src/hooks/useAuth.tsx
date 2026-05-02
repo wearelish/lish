@@ -139,6 +139,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Use a small delay to ensure state updates are processed
     setTimeout(() => {
+      setSigningOut(false); // Reset in case redirect fails
       window.location.href = "/";
     }, 100);
   };

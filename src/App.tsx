@@ -12,18 +12,19 @@ import { ErrorBoundary } from "./components/common/ErrorBoundary.tsx";
 import { OfflineIndicator } from "./components/common/OfflineIndicator.tsx";
 import { RoleDebugger } from "./components/common/RoleDebugger.tsx";
 
+// 1. BUG: cacheTime is not a valid option in @tanstack/react-query v5 (renamed to gcTime)
 // Enhanced Query Client with better defaults
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2, // Retry failed requests twice
-      staleTime: 30_000, // 30 seconds
-      cacheTime: 5 * 60 * 1000, // 5 minutes
-      refetchOnWindowFocus: false, // Don't refetch on window focus
-      refetchOnReconnect: true, // Refetch when reconnecting
+      retry: 2,
+      staleTime: 30_000,
+      gcTime: 5 * 60 * 1000, // v5: was cacheTime
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
     },
     mutations: {
-      retry: 1, // Retry mutations once
+      retry: 1,
     },
   },
 });
