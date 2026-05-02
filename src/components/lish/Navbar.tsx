@@ -12,7 +12,7 @@ const NAV_LINKS = [
 ];
 
 export const Navbar = () => {
-  const { user, role, signOut } = useAuth();
+  const { user, role, signOut, signingOut } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -89,10 +89,20 @@ export const Navbar = () => {
             {user ? (
               <button
                 onClick={handleSignOut}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium text-foreground/70 hover:text-foreground transition-all"
+                disabled={signingOut}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium text-foreground/70 hover:text-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ background: "rgba(255,255,255,0.35)", border: "1px solid rgba(255,255,255,0.6)" }}
               >
-                <LogOut className="w-3.5 h-3.5" /> Sign out
+                {signingOut ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
+                    Signing out...
+                  </>
+                ) : (
+                  <>
+                    <LogOut className="w-3.5 h-3.5" /> Sign out
+                  </>
+                )}
               </button>
             ) : (
               <>
@@ -177,9 +187,19 @@ export const Navbar = () => {
                   </div>
                   <button
                     onClick={handleSignOut}
-                    className="px-4 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 text-left flex items-center gap-2 transition-all"
+                    disabled={signingOut}
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 text-left flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <LogOut className="w-4 h-4" /> Sign out
+                    {signingOut ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-red-300 border-t-red-500 rounded-full animate-spin" />
+                        Signing out...
+                      </>
+                    ) : (
+                      <>
+                        <LogOut className="w-4 h-4" /> Sign out
+                      </>
+                    )}
                   </button>
                 </>
               )}

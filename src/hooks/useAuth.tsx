@@ -9,6 +9,7 @@ interface AuthCtx {
   user: User | null;
   role: AppRole | null;
   loading: boolean;
+  signingOut: boolean; // Add this to expose signing out state
   signOut: () => Promise<void>;
   refreshRole: () => Promise<void>;
 }
@@ -30,6 +31,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Start with cached role so dashboard shows instantly on refresh
   const [role, setRole] = useState<AppRole | null>(getCachedRole());
   const [loading, setLoading] = useState(true);
+  const [signingOut, setSigningOut] = useState(false); // Prevent double-clicks
 
   const loadRole = async (uid: string): Promise<void> => {
     try {
@@ -79,35 +81,72 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signOut = async () => {
-    try {
-      console.log('[useAuth] Signing out...');
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('[useAuth] Sign out error:', error);
-        throw error;
-      }
-      console.log('[useAuth] Sign out successful');
-      setRole(null); 
-      setUser(null); 
-      setSession(null);
-      setCachedRole(null);
-      // Force page reload to clear all state cleanly
-      window.location.href = "/";
-    } catch (error) {
-      console.error('[useAuth] Sign out failed:', error);
-      // Even if signOut fails, clear local state and redirect
-      setRole(null); 
-      setUser(null); 
-      setSession(null);
-      setCachedRole(null);
-      window.location.href = "/";
+    // Prevent multiple simultaneous sign-out attempts
+    if (signingOut) {
+      console.log('[useAuth] Sign out already in progress, ignoring duplicate call');
+      return;
     }
+
+    setSigningOut(true);
+    console.log('[useAuth] Sign out initiated');
+    console.log('[useAuth] Current user:', user?.id);
+    console.log('[useAuth] Current session:', session?.access_token ? 'exists' : 'none');
+
+    try {
+      // Step 1: Call Supabase sign out with timeout
+      console.log('[useAuth] Calling Supabase signOut...');
+      
+      const signOutPromise = supabase.auth.signOut();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Sign out timeout after 5 seconds')), 5000)
+      );
+
+      const { error } = await Promise.race([signOutPromise, timeoutPromise]) as any;
+      
+      if (error) {
+        console.error('[useAuth] Supabase sign out error:', error);
+        // Don't throw - we'll clear local state anyway
+      } else {
+        console.log('[useAuth] Supabase sign out successful');
+      }
+    } catch (error) {
+      console.error('[useAuth] Sign out API call failed:', error);
+      // Continue to clear local state even if API fails
+    }
+
+    // Step 2: Clear all local state (always execute, even if API fails)
+    console.log('[useAuth] Clearing local state...');
+    try {
+      setRole(null);
+      setUser(null);
+      setSession(null);
+      setCachedRole(null);
+      
+      // Clear all localStorage items related to auth
+      localStorage.removeItem(ROLE_CACHE_KEY);
+      localStorage.removeItem('supabase.auth.token');
+      
+      // Clear sessionStorage as well
+      sessionStorage.clear();
+      
+      console.log('[useAuth] Local state cleared successfully');
+    } catch (error) {
+      console.error('[useAuth] Error clearing local state:', error);
+    }
+
+    // Step 3: Redirect to home page
+    console.log('[useAuth] Redirecting to home page...');
+    
+    // Use a small delay to ensure state updates are processed
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 100);
   };
 
   const refreshRole = async () => { if (user) await loadRole(user.id); };
 
   return (
-    <Ctx.Provider value={{ session, user, role, loading, signOut, refreshRole }}>
+    <Ctx.Provider value={{ session, user, role, loading, signingOut, signOut, refreshRole }}>
       {children}
     </Ctx.Provider>
   );
