@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Component, ReactNode } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,47 +8,24 @@ import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login.tsx";
 import Signup from "./pages/Signup.tsx";
 import { AuthProvider } from "./hooks/useAuth.tsx";
+import { ErrorBoundary } from "./components/common/ErrorBoundary.tsx";
+import { OfflineIndicator } from "./components/common/OfflineIndicator.tsx";
 
+// Enhanced Query Client with better defaults
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
-      staleTime: 30_000,
+      retry: 2, // Retry failed requests twice
+      staleTime: 30_000, // 30 seconds
+      cacheTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false, // Don't refetch on window focus
+      refetchOnReconnect: true, // Refetch when reconnecting
+    },
+    mutations: {
+      retry: 1, // Retry mutations once
     },
   },
 });
-
-// Global error boundary — prevents a single component crash from wiping the whole app
-interface EBState { hasError: boolean; error: Error | null }
-class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
-  state: EBState = { hasError: false, error: null };
-
-  static getDerivedStateFromError(error: Error): EBState {
-    return { hasError: true, error };
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center p-8 text-center">
-          <div className="max-w-md">
-            <h1 className="text-2xl font-bold text-foreground mb-2">Something went wrong</h1>
-            <p className="text-muted-foreground text-sm mb-6">
-              {this.state.error?.message ?? "An unexpected error occurred."}
-            </p>
-            <button
-              onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
-              className="px-6 py-2.5 rounded-full bg-foreground text-background text-sm font-medium hover:bg-foreground/85 transition-all"
-            >
-              Reload page
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 const App = () => (
   <ErrorBoundary>
@@ -57,6 +33,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <OfflineIndicator />
         <BrowserRouter>
           <AuthProvider>
             <Routes>
