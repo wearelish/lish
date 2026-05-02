@@ -23,7 +23,19 @@ dist-ssr
 *.sln
 *.sw?
 
+# Environment variables
 .env
 .env.local
 .env.production
-dist/
+
+# Build files
+build/
+.cache/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.turbo
+.vercel
