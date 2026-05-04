@@ -35,6 +35,48 @@ export type Database = {
         }
         Relationships: []
       }
+      meetings: {
+        Row: {
+          admin_notes: string | null
+          client_id: string
+          created_at: string
+          description: string | null
+          id: string
+          meet_link: string | null
+          requested_at: string
+          scheduled_at: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          client_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          meet_link?: string | null
+          requested_at?: string
+          scheduled_at?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          meet_link?: string | null
+          requested_at?: string
+          scheduled_at?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           body: string
@@ -102,6 +144,33 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -142,11 +211,17 @@ export type Database = {
           client_id: string
           created_at: string
           deadline: string | null
+          delivered_at: string | null
+          delivery_file_url: string | null
+          delivery_note: string | null
           description: string
           final_paid: boolean
           final_price: number | null
           id: string
+          proposal_deadline: string | null
+          proposal_note: string | null
           status: Database["public"]["Enums"]["request_status"]
+          stripe_payment_link: string | null
           title: string
           updated_at: string
           upfront_paid: boolean
@@ -157,11 +232,17 @@ export type Database = {
           client_id: string
           created_at?: string
           deadline?: string | null
+          delivered_at?: string | null
+          delivery_file_url?: string | null
+          delivery_note?: string | null
           description: string
           final_paid?: boolean
           final_price?: number | null
           id?: string
+          proposal_deadline?: string | null
+          proposal_note?: string | null
           status?: Database["public"]["Enums"]["request_status"]
+          stripe_payment_link?: string | null
           title: string
           updated_at?: string
           upfront_paid?: boolean
@@ -172,14 +253,53 @@ export type Database = {
           client_id?: string
           created_at?: string
           deadline?: string | null
+          delivered_at?: string | null
+          delivery_file_url?: string | null
+          delivery_note?: string | null
           description?: string
           final_paid?: boolean
           final_price?: number | null
           id?: string
+          proposal_deadline?: string | null
+          proposal_note?: string | null
           status?: Database["public"]["Enums"]["request_status"]
+          stripe_payment_link?: string | null
           title?: string
           updated_at?: string
           upfront_paid?: boolean
+        }
+        Relationships: []
+      }
+      support_tickets: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          id: string
+          issue_type: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          issue_type?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          issue_type?: string
+          status?: string
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -220,6 +340,38 @@ export type Database = {
             columns: ["request_id"]
             isOneToOne: false
             referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          sender_id: string
+          ticket_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          sender_id: string
+          ticket_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
             referencedColumns: ["id"]
           },
         ]
@@ -297,6 +449,9 @@ export type Database = {
         | "in_progress"
         | "completed"
         | "cancelled"
+        | "under_review"
+        | "price_sent"
+        | "delivered"
       task_status: "todo" | "in_progress" | "done"
     }
     CompositeTypes: {
@@ -435,6 +590,9 @@ export const Constants = {
         "in_progress",
         "completed",
         "cancelled",
+        "under_review",
+        "price_sent",
+        "delivered",
       ],
       task_status: ["todo", "in_progress", "done"],
     },
