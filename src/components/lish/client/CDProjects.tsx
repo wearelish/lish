@@ -15,18 +15,30 @@ import type { CDSection } from "./ClientDashboard";
 const db = supabase as any;
 
 const PIPELINE: { status: string; label: string; desc: string }[] = [
-  { status: "pending",      label: "Submitted",    desc: "Your request has been received" },
-  { status: "under_review", label: "Under Review", desc: "Admin is reviewing your request" },
-  { status: "price_sent",   label: "Price Sent",   desc: "Admin has sent a proposal" },
-  { status: "in_progress",  label: "In Progress",  desc: "Work has started" },
-  { status: "delivered",    label: "Delivered",    desc: "Files are ready for you" },
-  { status: "completed",    label: "Completed",    desc: "Project complete" },
+  { status: "pending",      label: "Pending Review",          desc: "Your request has been received and is awaiting review" },
+  { status: "under_review", label: "Pending Review",          desc: "Admin is reviewing your request" },
+  { status: "price_sent",   label: "Proposal Sent",           desc: "Admin has sent a price proposal — review and pay to start" },
+  { status: "in_progress",  label: "In Progress",             desc: "Work has started on your project" },
+  { status: "delivered",    label: "Awaiting Final Payment",  desc: "Files are ready — pay the remaining 60% to download" },
+  { status: "completed",    label: "Completed",               desc: "Project complete and fully delivered" },
 ];
 
-const STATUS_ORDER = PIPELINE.map(p => p.status);
+// Map DB status → display label
+const STATUS_LABEL: Record<string, string> = {
+  pending:      "Pending Review",
+  under_review: "Pending Review",
+  price_sent:   "Proposal Sent",
+  in_progress:  "In Progress",
+  delivered:    "Awaiting Final Payment",
+  completed:    "Completed",
+  rejected:     "Rejected",
+  cancelled:    "Cancelled",
+};
+
+const STATUS_ORDER = ["pending", "under_review", "price_sent", "in_progress", "delivered", "completed"];
 
 const statusColor: Record<string, string> = {
-  pending:      "bg-stone-100 text-stone-600",
+  pending:      "bg-amber-100 text-amber-700",
   under_review: "bg-amber-100 text-amber-700",
   price_sent:   "bg-blue-100 text-blue-700",
   in_progress:  "bg-indigo-100 text-indigo-700",
@@ -118,18 +130,17 @@ const PipelineBar = ({ status }: { status: string }) => {
   const idx = STATUS_ORDER.indexOf(status);
   const total = STATUS_ORDER.length - 1;
   const pct = idx < 0 ? 0 : Math.round((idx / total) * 100);
+  const step = PIPELINE.find(p => p.status === status);
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-[10px] text-stone-400">
-        <span>Submitted</span><span>Completed</span>
+        <span>Pending Review</span><span>Completed</span>
       </div>
       <div className="w-full bg-stone-100 rounded-full h-1.5 overflow-hidden">
         <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.6 }}
           className="h-full rounded-full bg-gradient-to-r from-primary to-[hsl(var(--primary-glow))]" />
       </div>
-      <p className="text-[11px] text-stone-500">
-        {PIPELINE.find(p => p.status === status)?.desc ?? status}
-      </p>
+      <p className="text-[11px] text-stone-500">{step?.desc ?? STATUS_LABEL[status] ?? status}</p>
     </div>
   );
 };
@@ -213,7 +224,7 @@ export const CDProjects = ({ onNavigate }: { onNavigate: (s: CDSection) => void 
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full font-semibold ${statusColor[r.status] ?? "bg-muted text-muted-foreground"}`}>
-                      {r.status.replace(/_/g, " ")}
+                      {STATUS_LABEL[r.status] ?? r.status.replace(/_/g, " ")}
                     </span>
                     {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                   </div>
@@ -324,6 +335,14 @@ export const CDProjects = ({ onNavigate }: { onNavigate: (s: CDSection) => void 
                           <div className="flex items-center gap-2 bg-amber-50 rounded-xl px-3 py-2">
                             <Clock className="w-4 h-4 text-amber-500 shrink-0" />
                             <p className="text-xs text-amber-700">Admin is reviewing your request and will send a price proposal soon.</p>
+                          </div>
+                        )}
+
+                        {/* Rejected — show reason */}
+                        {r.status === "rejected" && (
+                          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                            <p className="text-xs font-semibold text-red-700 mb-1">Request Rejected</p>
+                            <p className="text-xs text-red-600">{r.rejection_reason || "No reason provided. Please contact support for more information."}</p>
                           </div>
                         )}
                       </div>

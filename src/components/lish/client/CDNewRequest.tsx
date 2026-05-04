@@ -102,16 +102,21 @@ export const CDNewRequest = ({ onNavigate }: { onNavigate: (s: CDSection) => voi
     return (
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
         className="flex flex-col items-center justify-center py-24 text-center">
-        <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-4" />
+        <div className="w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mb-6">
+          <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+        </div>
         <h2 className="font-serif text-3xl text-gradient">Request Submitted!</h2>
-        <p className="text-muted-foreground mt-2 text-sm max-w-xs">
-          Our team will review your request and get back to you shortly.
+        <p className="text-foreground font-medium mt-3 text-base max-w-sm">
+          Your request has been submitted. Admin will respond within 12–24 hours.
         </p>
-        <div className="flex gap-3 mt-6">
+        <p className="text-muted-foreground mt-2 text-sm max-w-xs">
+          You'll be notified once a proposal is ready. Track progress in My Projects.
+        </p>
+        <div className="flex gap-3 mt-8">
           <Button onClick={() => { setDone(false); setForm({ title: "", description: "", budget: "", deadline: "", meetingRequest: false }); }}
-            variant="outline" className="rounded-full">New Request</Button>
+            variant="outline" className="rounded-full">Submit Another</Button>
           <Button onClick={() => onNavigate("projects")} className="rounded-full bg-foreground text-background border-0">
-            View Projects
+            View My Projects
           </Button>
         </div>
       </motion.div>

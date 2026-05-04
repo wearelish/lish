@@ -35,6 +35,8 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
   const [propDeadline, setPropDeadline] = useState("");
   const [propNote, setPropNote] = useState("");
   const [propStripe, setPropStripe] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
+  const [showRejectForm, setShowRejectForm] = useState(false);
 
   // Delivery form
   const [deliveryUrl, setDeliveryUrl] = useState("");
@@ -77,12 +79,14 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
     qc.invalidateQueries({ queryKey: ["cd-home-msgs"] });
   };
 
-  const setStatus = async (id: string, status: string) => {
+  const setStatus = async (id: string, status: string, reason?: string) => {
     setSaving(true);
-    const { error } = await supabase.from("service_requests").update({ status } as any).eq("id", id);
+    const updates: any = { status };
+    if (reason) updates.rejection_reason = reason;
+    const { error } = await supabase.from("service_requests").update(updates as any).eq("id", id);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    if (active?.id === id) setActive({ ...active, status });
+    if (active?.id === id) setActive({ ...active, status, ...(reason ? { rejection_reason: reason } : {}) });
     reload();
     toast.success(`→ ${STATUS_LABELS[status] ?? status}`);
   };
@@ -134,6 +138,8 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
 
   const openRequest = (r: any) => {
     setActive(r);
+    setShowRejectForm(false);
+    setRejectReason(r.rejection_reason ?? "");
     setPropPrice(r.final_price?.toString() ?? "");
     setPropScope(r.scope_of_work ?? "");
     setPropDeadline(r.proposal_deadline ?? "");
@@ -188,7 +194,7 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
                   </button>
                 )}
                 {r.status === "pending" && (
-                  <button onClick={() => setStatus(r.id, "rejected")}
+                  <button onClick={() => { openRequest(r); setShowRejectForm(true); }}
                     className="px-2.5 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-medium hover:bg-red-200 transition-all">
                     Reject
                   </button>
@@ -241,8 +247,31 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
                   </div>
                 </div>
 
-                {/* Send Proposal — shown when under_review or price_sent */}
-                {["pending", "under_review", "price_sent"].includes(active.status) && (
+                {/* Reject with reason */}
+                {(showRejectForm || active.status === "rejected") && (
+                  <div className="bg-red-50 rounded-2xl p-4 space-y-3 border border-red-200">
+                    <p className="text-xs font-semibold text-red-700 uppercase tracking-wider">Reject Request</p>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Reason for rejection (client will see this)</Label>
+                      <Textarea rows={3} value={rejectReason}
+                        onChange={e => setRejectReason(e.target.value)}
+                        placeholder="e.g. Budget is too low for the requested scope, or project is outside our service area…"
+                        className="rounded-xl resize-none text-sm" />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={() => { setStatus(active.id, "rejected", rejectReason); setShowRejectForm(false); }}
+                        disabled={saving} className="rounded-xl bg-red-500 text-white border-0 h-9 text-sm flex-1">
+                        {saving ? "Rejecting…" : "Confirm Rejection"}
+                      </Button>
+                      <Button onClick={() => setShowRejectForm(false)} variant="outline" size="sm" className="rounded-xl h-9">Cancel</Button>
+                    </div>
+                    {active.rejection_reason && (
+                      <p className="text-xs text-red-600 italic">Current reason: "{active.rejection_reason}"</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Send Proposal — shown when under_review or price_sent */}                {["pending", "under_review", "price_sent"].includes(active.status) && (
                   <div className="bg-amber-50 rounded-2xl p-4 space-y-3">
                     <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Send Price Proposal</p>
                     <div className="grid grid-cols-2 gap-3">
