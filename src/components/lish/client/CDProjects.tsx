@@ -7,12 +7,11 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   Clock, CheckCircle2, AlertCircle, Package,
-  CreditCard, Download, ChevronDown, ChevronUp, Timer, X
+  CreditCard, Download, ChevronDown, ChevronUp, Timer, X, Smartphone
 } from "lucide-react";
 import { PageHeader } from "./shared";
 import type { CDSection } from "./ClientDashboard";
-
-const db = supabase as any;
+import { openRazorpay, usdToInrPaise } from "@/utils/razorpay";
 
 const PIPELINE: { status: string; label: string; desc: string }[] = [
   { status: "pending",      label: "Submitted",    desc: "Your request has been received" },
@@ -40,22 +39,54 @@ const statusColor: Record<string, string> = {
 const PayModal = ({ request, type, onClose, onSuccess }: {
   request: any; type: "upfront" | "final"; onClose: () => void; onSuccess: () => void;
 }) => {
+  const { user } = useAuth();
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState(false);
   const price = Number(request.final_price) || 0;
   const amount = type === "upfront" ? price * 0.4 : price * 0.6;
-  const stripeLink = request.stripe_payment_link;
+  const hasRazorpay = !!import.meta.env.VITE_RAZORPAY_KEY_ID;
 
-  const confirmPay = async () => {
-    setPaying(true);
+  const confirmInDb = async () => {
     const updates: any = type === "upfront"
       ? { upfront_paid: true, status: "in_progress" }
       : { final_paid: true, status: "completed" };
     const { error } = await supabase.from("service_requests").update(updates).eq("id", request.id);
-    setPaying(false);
-    if (error) { toast.error("Payment confirmation failed: " + error.message); return; }
-    setDone(true);
-    setTimeout(() => { onSuccess(); onClose(); }, 1200);
+    if (error) throw error;
+  };
+
+  const handleRazorpay = async () => {
+    setPaying(true);
+    try {
+      await openRazorpay({
+        amount: usdToInrPaise(amount),
+        currency: "INR",
+        name: "LISH",
+        description: `${type === "upfront" ? "40% Advance" : "60% Final"} — ${request.title}`,
+        prefill: { email: user?.email, name: user?.user_metadata?.full_name },
+        onSuccess: async () => {
+          await confirmInDb();
+          setDone(true);
+          setTimeout(() => { onSuccess(); onClose(); }, 1400);
+        },
+        onFailure: (err) => { toast.error("Payment failed: " + (err?.description ?? "Unknown")); setPaying(false); },
+        onDismiss: () => setPaying(false),
+      });
+    } catch (err: any) {
+      toast.error(err.message ?? "Could not open payment");
+      setPaying(false);
+    }
+  };
+
+  const handleManual = async () => {
+    setPaying(true);
+    try {
+      await confirmInDb();
+      setDone(true);
+      setTimeout(() => { onSuccess(); onClose(); }, 1200);
+    } catch (err: any) {
+      toast.error(err.message);
+      setPaying(false);
+    }
   };
 
   return (
@@ -84,24 +115,35 @@ const PayModal = ({ request, type, onClose, onSuccess }: {
                 <p className="text-xs text-stone-400 mt-1">
                   {type === "upfront" ? "40% advance — unlocks project start" : "60% final — unlocks delivery files"}
                 </p>
+                <p className="text-[11px] text-stone-300 mt-0.5">≈ ₹{usdToInrPaise(amount) / 100} INR</p>
               </div>
-              {stripeLink ? (
+              {hasRazorpay ? (
                 <>
-                  <a href={stripeLink} target="_blank" rel="noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-white font-semibold text-sm"
-                    style={{ background: "linear-gradient(135deg,#635BFF,#7B73FF)", boxShadow: "0 4px 16px rgba(99,91,255,0.3)" }}>
-                    Pay with Google Pay / UPI / Card
-                  </a>
-                  <p className="text-[11px] text-center text-stone-400">Opens Stripe — supports all payment methods</p>
+                  <Button onClick={handleRazorpay} disabled={paying}
+                    className="w-full rounded-2xl h-12 text-white font-semibold text-sm border-0"
+                    style={{ background: "linear-gradient(135deg, #072654 0%, #1a56db 100%)" }}>
+                    {paying ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        Opening Razorpay…
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Smartphone className="w-4 h-4" />
+                        Pay with UPI / Card / NetBanking
+                      </span>
+                    )}
+                  </Button>
+                  <p className="text-[11px] text-center text-stone-400">Powered by Razorpay</p>
                   <div className="border-t border-stone-100 pt-3">
                     <p className="text-xs text-stone-500 text-center mb-2">Already paid?</p>
-                    <Button onClick={confirmPay} disabled={paying} variant="outline" className="w-full rounded-xl h-10 text-sm">
+                    <Button onClick={handleManual} disabled={paying} variant="outline" className="w-full rounded-xl h-10 text-sm">
                       {paying ? "Confirming…" : "Mark as Paid"}
                     </Button>
                   </div>
                 </>
               ) : (
-                <Button onClick={confirmPay} disabled={paying} className="w-full rounded-xl h-11 bg-foreground text-background border-0">
+                <Button onClick={handleManual} disabled={paying} className="w-full rounded-xl h-11 bg-foreground text-background border-0">
                   {paying ? "Confirming…" : "Confirm Payment"}
                 </Button>
               )}
@@ -228,6 +270,9 @@ export const CDProjects = ({ onNavigate }: { onNavigate: (s: CDSection) => void 
                         Final price: <strong>${price.toLocaleString()}</strong>
                         {r.proposal_deadline && ` · Deadline: ${new Date(r.proposal_deadline).toLocaleDateString()}`}
                       </p>
+                      {r.scope_of_work && (
+                        <p className="text-xs text-amber-700 mt-1.5 font-medium">Scope: <span className="font-normal">{r.scope_of_work}</span></p>
+                      )}
                       {r.proposal_note && <p className="text-xs text-amber-600 mt-0.5 italic">"{r.proposal_note}"</p>}
                     </div>
                     <Button onClick={() => setPayModal({ request: r, type: "upfront" })} size="sm"
@@ -265,6 +310,14 @@ export const CDProjects = ({ onNavigate }: { onNavigate: (s: CDSection) => void 
                           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Description</p>
                           <p className="text-sm">{r.description}</p>
                         </div>
+
+                        {/* Scope of work */}
+                        {r.scope_of_work && (
+                          <div className="bg-blue-50 rounded-xl p-3">
+                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">Scope of Work</p>
+                            <p className="text-sm text-blue-800">{r.scope_of_work}</p>
+                          </div>
+                        )}
 
                         {/* Pricing */}
                         {price > 0 && (

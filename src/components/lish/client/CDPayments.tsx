@@ -7,40 +7,78 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   CreditCard, AlertCircle, CheckCircle2, Clock,
-  X, Banknote, Smartphone, Timer, ExternalLink
+  X, Banknote, Timer, ExternalLink, Smartphone
 } from "lucide-react";
 import { statusBadge, PageHeader, EmptyState } from "./shared";
+import { openRazorpay, usdToInrPaise } from "@/utils/razorpay";
 
-const db = supabase as any;
-
-// Payment modal — Stripe link (Google Pay / Apple Pay / UPI / Card) + manual fallback
+// Payment modal — Razorpay (UPI / Card / NetBanking / Wallets) + manual fallback
 const PayModal = ({
   request,
   type,
   onClose,
   onSuccess,
+  userEmail,
+  userName,
 }: {
   request: any;
   type: "upfront" | "final";
   onClose: () => void;
   onSuccess: () => void;
+  userEmail?: string;
+  userName?: string;
 }) => {
-  const [confirming, setConfirming] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [done, setDone] = useState(false);
   const price = Number(request.final_price) || 0;
   const amount = type === "upfront" ? price * 0.4 : price * 0.6;
-  const stripeLink = (request as any).stripe_payment_link;
+  const hasRazorpay = !!import.meta.env.VITE_RAZORPAY_KEY_ID;
 
-  const confirmManual = async () => {
-    setConfirming(true);
+  const confirmInDb = async () => {
     const field = type === "upfront" ? "upfront_paid" : "final_paid";
     const updates: any = { [field]: true };
     if (type === "upfront") updates.status = "in_progress";
+    if (type === "final") updates.status = "completed";
     const { error } = await supabase.from("service_requests").update(updates).eq("id", request.id);
-    setConfirming(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(type === "upfront" ? "Payment confirmed! Work starts now." : "Final payment confirmed!");
-    onSuccess();
-    onClose();
+    if (error) throw error;
+  };
+
+  const handleRazorpay = async () => {
+    setPaying(true);
+    try {
+      await openRazorpay({
+        amount: usdToInrPaise(amount),
+        currency: "INR",
+        name: "LISH",
+        description: `${type === "upfront" ? "40% Advance" : "60% Final"} — ${request.title}`,
+        prefill: { email: userEmail, name: userName },
+        onSuccess: async () => {
+          await confirmInDb();
+          setDone(true);
+          setTimeout(() => { onSuccess(); onClose(); }, 1400);
+        },
+        onFailure: (err) => {
+          toast.error("Payment failed: " + (err?.description ?? "Unknown error"));
+          setPaying(false);
+        },
+        onDismiss: () => setPaying(false),
+      });
+    } catch (err: any) {
+      toast.error(err.message ?? "Could not open payment");
+      setPaying(false);
+    }
+  };
+
+  const handleManual = async () => {
+    setPaying(true);
+    try {
+      await confirmInDb();
+      setDone(true);
+      setTimeout(() => { onSuccess(); onClose(); }, 1200);
+    } catch (err: any) {
+      toast.error(err.message);
+      setPaying(false);
+    }
   };
 
   return (
@@ -59,38 +97,60 @@ const PayModal = ({
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          <div className="text-center">
-            <p className="text-4xl font-bold text-stone-800">${amount.toLocaleString()}</p>
-            <p className="text-xs text-stone-400 mt-1">{type === "upfront" ? "40% advance — work starts after payment" : "60% final — on delivery"}</p>
-          </div>
-
-          {stripeLink ? (
-            <>
-              {/* Primary: Stripe link — Google Pay, Apple Pay, UPI, Card */}
-              <a href={stripeLink} target="_blank" rel="noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-white font-semibold text-sm transition-all hover:opacity-90"
-                style={{ background: "linear-gradient(135deg, #635BFF 0%, #7B73FF 100%)", boxShadow: "0 4px 16px rgba(99,91,255,0.35)" }}>
-                <ExternalLink className="w-4 h-4" />
-                Pay with Google Pay / Apple Pay / UPI / Card
-              </a>
-              <p className="text-[11px] text-center text-stone-400">Opens secure Stripe checkout — supports all payment methods</p>
-              <div className="border-t border-stone-100 pt-3">
-                <p className="text-xs text-stone-500 mb-2 text-center">Already paid via the link?</p>
-                <Button onClick={confirmManual} disabled={confirming} variant="outline" className="w-full rounded-xl h-10 text-sm">
-                  {confirming ? "Confirming…" : "Mark as Paid"}
-                </Button>
-              </div>
-            </>
+          {done ? (
+            <div className="text-center py-6">
+              <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto mb-3" />
+              <p className="font-semibold text-lg">Payment Confirmed!</p>
+              <p className="text-sm text-stone-500 mt-1">
+                {type === "upfront" ? "Work starts now. We'll keep you updated." : "Project completed! Download your files."}
+              </p>
+            </div>
           ) : (
             <>
-              {/* No Stripe link yet — manual confirmation */}
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
-                <p className="text-sm text-amber-700 font-medium">Payment link not set up yet</p>
-                <p className="text-xs text-amber-600 mt-1">Admin will add the payment link shortly. You can confirm manually once you've paid via bank transfer or UPI.</p>
+              <div className="text-center">
+                <p className="text-4xl font-bold text-stone-800">${amount.toLocaleString()}</p>
+                <p className="text-xs text-stone-400 mt-1">
+                  {type === "upfront" ? "40% advance — unlocks project start" : "60% final — unlocks delivery files"}
+                </p>
+                <p className="text-[11px] text-stone-300 mt-0.5">≈ ₹{usdToInrPaise(amount) / 100} INR</p>
               </div>
-              <Button onClick={confirmManual} disabled={confirming} className="w-full rounded-xl h-11 bg-foreground text-background border-0">
-                {confirming ? "Confirming…" : "Confirm Manual Payment"}
-              </Button>
+
+              {hasRazorpay ? (
+                <>
+                  <Button onClick={handleRazorpay} disabled={paying}
+                    className="w-full rounded-2xl h-12 text-white font-semibold text-sm border-0"
+                    style={{ background: "linear-gradient(135deg, #072654 0%, #1a56db 100%)", boxShadow: "0 4px 16px rgba(7,38,84,0.3)" }}>
+                    {paying ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        Opening Razorpay…
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Smartphone className="w-4 h-4" />
+                        Pay with UPI / Card / NetBanking
+                      </span>
+                    )}
+                  </Button>
+                  <p className="text-[11px] text-center text-stone-400">Powered by Razorpay — supports UPI, cards, wallets & more</p>
+                  <div className="border-t border-stone-100 pt-3">
+                    <p className="text-xs text-stone-500 mb-2 text-center">Already paid via bank transfer?</p>
+                    <Button onClick={handleManual} disabled={paying} variant="outline" className="w-full rounded-xl h-10 text-sm">
+                      Mark as Paid Manually
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
+                    <p className="text-sm text-amber-700 font-medium">Razorpay not configured</p>
+                    <p className="text-xs text-amber-600 mt-1">Add VITE_RAZORPAY_KEY_ID to .env to enable online payments. You can confirm manually for now.</p>
+                  </div>
+                  <Button onClick={handleManual} disabled={paying} className="w-full rounded-xl h-11 bg-foreground text-background border-0">
+                    {paying ? "Confirming…" : "Confirm Manual Payment"}
+                  </Button>
+                </>
+              )}
             </>
           )}
         </div>
@@ -121,6 +181,8 @@ export const CDPayments = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
   const uid = user?.id;
   const qc = useQueryClient();
   const [payModal, setPayModal] = useState<{ request: any; type: "upfront" | "final" } | null>(null);
+  const userName = user?.user_metadata?.full_name;
+  const userEmail = user?.email;
 
   const { data: requests = [] } = useQuery({
     queryKey: ["cd-payments", uid],
@@ -288,7 +350,6 @@ export const CDPayments = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
         </div>
       )}
 
-      {/* Payment modal */}
       <AnimatePresence>
         {payModal && (
           <PayModal
@@ -296,6 +357,8 @@ export const CDPayments = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
             type={payModal.type}
             onClose={() => setPayModal(null)}
             onSuccess={onPaySuccess}
+            userEmail={userEmail}
+            userName={userName}
           />
         )}
       </AnimatePresence>

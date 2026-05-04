@@ -6,9 +6,10 @@ import { LishLogo } from "@/components/lish/LishLogo";
 import { LogOut, Menu, X } from "lucide-react";
 
 const NAV_LINKS = [
-  { label: "Services", href: "/#services" },
-  { label: "How it works", href: "/#how" },
-  { label: "About", href: "/#about" },
+  { label: "Services",    href: "#services" },
+  { label: "Portfolio",   href: "#portfolio" },
+  { label: "About",       href: "#about" },
+  { label: "How it works", href: "#how" },
 ];
 
 export const Navbar = () => {

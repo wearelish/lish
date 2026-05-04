@@ -116,10 +116,27 @@ All colors MUST be HSL.
     font-feature-settings: 'ss01', 'cv11';
   }
 
+  /* Hide default cursor on non-touch devices for custom cursor */
+  @media (pointer: fine) and (min-width: 768px) {
+    *, *::before, *::after {
+      cursor: none !important;
+    }
+  }
+
   h1, h2, h3, h4 {
     font-family: 'Fraunces', 'Playfair Display', Georgia, serif;
     letter-spacing: -0.02em;
   }
+}
+
+@keyframes blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(30px, -20px) scale(1.05); }
+  66%       { transform: translate(-20px, 20px) scale(0.97); }
+}
+
+.animate-blob {
+  animation: blob 12s ease-in-out infinite;
 }
 
 @layer components {

@@ -11,6 +11,7 @@ import { AuthProvider } from "./hooks/useAuth.tsx";
 import { ErrorBoundary } from "./components/common/ErrorBoundary.tsx";
 import { OfflineIndicator } from "./components/common/OfflineIndicator.tsx";
 import { RoleDebugger } from "./components/common/RoleDebugger.tsx";
+import { MagneticCursor } from "./components/lish/MagneticCursor.tsx";
 
 // 1. BUG: cacheTime is not a valid option in @tanstack/react-query v5 (renamed to gcTime)
 // Enhanced Query Client with better defaults
@@ -33,6 +34,7 @@ const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <MagneticCursor />
         <Toaster />
         <Sonner />
         <OfflineIndicator />

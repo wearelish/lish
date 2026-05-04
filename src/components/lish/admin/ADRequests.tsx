@@ -33,6 +33,7 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
   const [propPrice, setPropPrice] = useState("");
   const [propDeadline, setPropDeadline] = useState("");
   const [propNote, setPropNote] = useState("");
+  const [propScope, setPropScope] = useState("");
   const [propStripe, setPropStripe] = useState("");
 
   // Delivery form
@@ -88,10 +89,12 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
 
   const sendProposal = async () => {
     if (!active || !propPrice) { toast.error("Enter a price"); return; }
+    if (!propScope.trim()) { toast.error("Scope of work is required"); return; }
     setSaving(true);
     const updates: any = {
       final_price: Number(propPrice),
       status: "price_sent",
+      scope_of_work: propScope.trim(),
       proposal_note: propNote || null,
       proposal_deadline: propDeadline || null,
     };
@@ -134,6 +137,7 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
     setPropPrice(r.final_price?.toString() ?? "");
     setPropDeadline(r.proposal_deadline ?? "");
     setPropNote(r.proposal_note ?? "");
+    setPropScope(r.scope_of_work ?? "");
     setPropStripe(r.stripe_payment_link ?? "");
     setDeliveryUrl(r.delivery_file_url ?? "");
     setDeliveryNote(r.delivery_note ?? "");
@@ -252,12 +256,18 @@ export const ADRequests = ({ onNavigate: _ }: { onNavigate: (s: any) => void }) 
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Note to client (optional)</Label>
-                      <Textarea rows={2} value={propNote} onChange={e => setPropNote(e.target.value)} placeholder="Any notes for the client…" className="rounded-xl resize-none text-sm" />
+                      <Label className="text-xs">Scope of Work * <span className="text-amber-600">(required — client will see this)</span></Label>
+                      <Textarea rows={4} value={propScope} onChange={e => setPropScope(e.target.value)}
+                        placeholder="Describe exactly what will be delivered: features, pages, deliverables, tech stack, revisions included…"
+                        className="rounded-xl resize-none text-sm" required />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Stripe Payment Link (optional)</Label>
-                      <Input value={propStripe} onChange={e => setPropStripe(e.target.value)} placeholder="https://buy.stripe.com/..." className="rounded-xl h-9 text-sm" />
+                      <Label className="text-xs">Additional note to client (optional)</Label>
+                      <Textarea rows={2} value={propNote} onChange={e => setPropNote(e.target.value)} placeholder="Any extra notes…" className="rounded-xl resize-none text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Payment Link (Razorpay / UPI / Bank)</Label>
+                      <Input value={propStripe} onChange={e => setPropStripe(e.target.value)} placeholder="https://rzp.io/... or UPI ID" className="rounded-xl h-9 text-sm" />
                     </div>
                     <Button onClick={sendProposal} disabled={saving} className="w-full rounded-xl bg-amber-500 text-white border-0 h-9 text-sm">
                       {saving ? "Sending…" : "Send Proposal to Client"}
