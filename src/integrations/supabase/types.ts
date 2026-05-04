@@ -135,126 +135,6 @@ export type Database = {
         }
         Relationships: []
       }
-      meetings: {
-        Row: {
-          id: string
-          client_id: string
-          title: string
-          description: string | null
-          status: string
-          scheduled_at: string | null
-          requested_at: string | null
-          meet_link: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          client_id: string
-          title: string
-          description?: string | null
-          status?: string
-          scheduled_at?: string | null
-          requested_at?: string | null
-          meet_link?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          client_id?: string
-          title?: string
-          description?: string | null
-          status?: string
-          scheduled_at?: string | null
-          requested_at?: string | null
-          meet_link?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      support_tickets: {
-        Row: {
-          id: string
-          client_id: string
-          title: string
-          issue_type: string
-          description: string
-          status: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          client_id: string
-          title: string
-          issue_type?: string
-          description: string
-          status?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          client_id?: string
-          title?: string
-          issue_type?: string
-          description?: string
-          status?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      ticket_messages: {
-        Row: {
-          id: string
-          ticket_id: string
-          sender_id: string
-          body: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          ticket_id: string
-          sender_id: string
-          body: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          ticket_id?: string
-          sender_id?: string
-          body?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
-      notifications: {
-        Row: {
-          id: string
-          user_id: string
-          message: string
-          type: string
-          is_read: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          message: string
-          type?: string
-          is_read?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          message?: string
-          type?: string
-          is_read?: boolean
-          created_at?: string
-        }
-        Relationships: []
-      }
       service_requests: {
         Row: {
           assigned_employee_id: string | null
@@ -262,17 +142,11 @@ export type Database = {
           client_id: string
           created_at: string
           deadline: string | null
-          delivered_at: string | null
-          delivery_file_url: string | null
-          delivery_note: string | null
           description: string
           final_paid: boolean
           final_price: number | null
           id: string
-          proposal_deadline: string | null
-          proposal_note: string | null
           status: Database["public"]["Enums"]["request_status"]
-          stripe_payment_link: string | null
           title: string
           updated_at: string
           upfront_paid: boolean
@@ -283,17 +157,11 @@ export type Database = {
           client_id: string
           created_at?: string
           deadline?: string | null
-          delivered_at?: string | null
-          delivery_file_url?: string | null
-          delivery_note?: string | null
           description: string
           final_paid?: boolean
           final_price?: number | null
           id?: string
-          proposal_deadline?: string | null
-          proposal_note?: string | null
           status?: Database["public"]["Enums"]["request_status"]
-          stripe_payment_link?: string | null
           title: string
           updated_at?: string
           upfront_paid?: boolean
@@ -304,17 +172,11 @@ export type Database = {
           client_id?: string
           created_at?: string
           deadline?: string | null
-          delivered_at?: string | null
-          delivery_file_url?: string | null
-          delivery_note?: string | null
           description?: string
           final_paid?: boolean
           final_price?: number | null
           id?: string
-          proposal_deadline?: string | null
-          proposal_note?: string | null
           status?: Database["public"]["Enums"]["request_status"]
-          stripe_payment_link?: string | null
           title?: string
           updated_at?: string
           upfront_paid?: boolean
@@ -429,13 +291,10 @@ export type Database = {
       negotiation_actor: "client" | "admin"
       request_status:
         | "pending"
-        | "under_review"
-        | "price_sent"
         | "negotiating"
         | "accepted"
         | "rejected"
         | "in_progress"
-        | "delivered"
         | "completed"
         | "cancelled"
       task_status: "todo" | "in_progress" | "done"
@@ -570,13 +429,10 @@ export const Constants = {
       negotiation_actor: ["client", "admin"],
       request_status: [
         "pending",
-        "under_review",
-        "price_sent",
         "negotiating",
         "accepted",
         "rejected",
         "in_progress",
-        "delivered",
         "completed",
         "cancelled",
       ],
