@@ -1,8 +1,4 @@
+// Kept for any legacy imports — renders the LISH wordmark
 export const LishLogo = ({ className = "" }: { className?: string }) => (
-  <img
-    src="/logo.png"
-    alt="LISH"
-    className={className}
-    style={{ objectFit: "contain", display: "block" }}
-  />
+  <span className={`font-serif font-bold text-gradient ${className}`} style={{ display: "inline-block" }}>LISH</span>
 );

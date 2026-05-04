@@ -1,80 +1,42 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-
-const db = supabase as any;
+import { useAuth } from "./useAuth";
 
 export interface Notification {
   id: string;
   message: string;
-  type: "info" | "success" | "warning" | "error";
-  created_at: string;
+  type: string;
   is_read: boolean;
-}
-
-export interface PopupNotification extends Notification {
-  popupId: string;
+  created_at: string;
 }
 
 export const useNotifications = () => {
   const { user } = useAuth();
-  const uid = user?.id;
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [popup, setPopup] = useState<PopupNotification | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const lastIdRef = useRef<string | null>(null);
-  const popupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!uid) return;
-    try {
-      const { data, error } = await db
-        .from("notifications")
-        .select("*")
-        .eq("user_id", uid)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      if (error || !data) return;
-
-      setNotifications(data);
-      const unread = data.filter((n: Notification) => !n.is_read);
-      setUnreadCount(unread.length);
-
-      if (unread.length > 0) {
-        const newest = unread[0] as Notification;
-        if (newest.id !== lastIdRef.current) {
-          lastIdRef.current = newest.id;
-          const popupItem: PopupNotification = { ...newest, popupId: newest.id };
-          setPopup(popupItem);
-          if (popupTimerRef.current) clearTimeout(popupTimerRef.current);
-          popupTimerRef.current = setTimeout(() => setPopup(null), 5000);
-        }
-      }
-    } catch { /* silent fail */ }
-  }, [uid]);
-
-  const markAllRead = useCallback(async () => {
-    if (!uid) return;
-    await db.from("notifications").update({ is_read: true }).eq("user_id", uid).eq("is_read", false);
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-    setUnreadCount(0);
-  }, [uid]);
-
-  const markRead = useCallback(async (id: string) => {
-    await db.from("notifications").update({ is_read: true }).eq("id", id);
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-    setUnreadCount(prev => Math.max(0, prev - 1));
-  }, []);
+  const load = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setNotifications((data as Notification[]) ?? []);
+  };
 
   useEffect(() => {
-    if (!uid) return;
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 5000);
-    return () => {
-      clearInterval(interval);
-      if (popupTimerRef.current) clearTimeout(popupTimerRef.current);
-    };
-  }, [uid, fetchNotifications]);
+    load();
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
-  return { notifications, unreadCount, popup, markAllRead, markRead, dismissPopup: () => setPopup(null) };
+  const markAllRead = async () => {
+    if (!user) return;
+    await supabase.from("notifications").update({ is_read: true } as any).eq("user_id", user.id);
+    setNotifications(n => n.map(x => ({ ...x, is_read: true })));
+  };
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+  return { notifications, unreadCount, markAllRead, reload: load };
 };
