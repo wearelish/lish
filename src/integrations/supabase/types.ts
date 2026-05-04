@@ -35,48 +35,6 @@ export type Database = {
         }
         Relationships: []
       }
-      meetings: {
-        Row: {
-          admin_notes: string | null
-          client_id: string
-          created_at: string
-          description: string | null
-          id: string
-          meet_link: string | null
-          requested_at: string
-          scheduled_at: string | null
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          admin_notes?: string | null
-          client_id: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          meet_link?: string | null
-          requested_at?: string
-          scheduled_at?: string | null
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          admin_notes?: string | null
-          client_id?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          meet_link?: string | null
-          requested_at?: string
-          scheduled_at?: string | null
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       messages: {
         Row: {
           body: string
@@ -144,33 +102,6 @@ export type Database = {
           },
         ]
       }
-      notifications: {
-        Row: {
-          created_at: string
-          id: string
-          is_read: boolean
-          message: string
-          type: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_read?: boolean
-          message: string
-          type?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_read?: boolean
-          message?: string
-          type?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -201,6 +132,126 @@ export type Database = {
           github_username?: string | null
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      meetings: {
+        Row: {
+          id: string
+          client_id: string
+          title: string
+          description: string | null
+          status: string
+          scheduled_at: string | null
+          requested_at: string | null
+          meet_link: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          title: string
+          description?: string | null
+          status?: string
+          scheduled_at?: string | null
+          requested_at?: string | null
+          meet_link?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          title?: string
+          description?: string | null
+          status?: string
+          scheduled_at?: string | null
+          requested_at?: string | null
+          meet_link?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      support_tickets: {
+        Row: {
+          id: string
+          client_id: string
+          title: string
+          issue_type: string
+          description: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          title: string
+          issue_type?: string
+          description: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          title?: string
+          issue_type?: string
+          description?: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ticket_messages: {
+        Row: {
+          id: string
+          ticket_id: string
+          sender_id: string
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ticket_id: string
+          sender_id: string
+          body: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          ticket_id?: string
+          sender_id?: string
+          body?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          message: string
+          type: string
+          is_read: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          message: string
+          type?: string
+          is_read?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          message?: string
+          type?: string
+          is_read?: boolean
+          created_at?: string
         }
         Relationships: []
       }
@@ -270,39 +321,6 @@ export type Database = {
         }
         Relationships: []
       }
-      support_tickets: {
-        Row: {
-          client_id: string
-          created_at: string
-          description: string | null
-          id: string
-          issue_type: string
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          issue_type?: string
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          issue_type?: string
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       tasks: {
         Row: {
           created_at: string
@@ -340,38 +358,6 @@ export type Database = {
             columns: ["request_id"]
             isOneToOne: false
             referencedRelation: "service_requests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ticket_messages: {
-        Row: {
-          body: string
-          created_at: string
-          id: string
-          sender_id: string
-          ticket_id: string
-        }
-        Insert: {
-          body: string
-          created_at?: string
-          id?: string
-          sender_id: string
-          ticket_id: string
-        }
-        Update: {
-          body?: string
-          created_at?: string
-          id?: string
-          sender_id?: string
-          ticket_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ticket_messages_ticket_id_fkey"
-            columns: ["ticket_id"]
-            isOneToOne: false
-            referencedRelation: "support_tickets"
             referencedColumns: ["id"]
           },
         ]
@@ -437,29 +423,21 @@ export type Database = {
         }
         Returns: boolean
       }
-      set_signup_role: {
-        Args: {
-          _code: string
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
     }
     Enums: {
       app_role: "admin" | "employee" | "client"
       negotiation_actor: "client" | "admin"
       request_status:
         | "pending"
+        | "under_review"
+        | "price_sent"
         | "negotiating"
         | "accepted"
         | "rejected"
         | "in_progress"
+        | "delivered"
         | "completed"
         | "cancelled"
-        | "under_review"
-        | "price_sent"
-        | "delivered"
       task_status: "todo" | "in_progress" | "done"
     }
     CompositeTypes: {
@@ -592,15 +570,15 @@ export const Constants = {
       negotiation_actor: ["client", "admin"],
       request_status: [
         "pending",
+        "under_review",
+        "price_sent",
         "negotiating",
         "accepted",
         "rejected",
         "in_progress",
+        "delivered",
         "completed",
         "cancelled",
-        "under_review",
-        "price_sent",
-        "delivered",
       ],
       task_status: ["todo", "in_progress", "done"],
     },
